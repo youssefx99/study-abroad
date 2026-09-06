@@ -1,0 +1,224 @@
+@import 'tailwindcss';
+
+/*
+ * Flow design tokens.
+ *
+ * The visual language is a dossier, not a card grid: records sit in ruled rows
+ * with generous vertical rhythm, and radius varies by hierarchy so a surface, a
+ * control, and a chip are visibly different kinds of thing.
+ *
+ * Colour is carried almost entirely by ink on paper. The single accent — a deep
+ * teal that reads as "verified" rather than "brand" — is reserved for actions
+ * and confirmed states, so when something turns amber or rose it means it.
+ */
+
+@theme {
+  /* Base palette */
+  --color-paper: #fbfbfc;
+  --color-ink: #101724;
+  --color-slate: #5a6472;
+  --color-line: #e4e7ec;
+
+  /* Signals */
+  --color-signal: #2f6f63;
+  --color-signal-soft: #e8f1ef;
+  --color-amber: #b26b12;
+  --color-amber-soft: #fbf1e2;
+  --color-rose: #a8323f;
+  --color-rose-soft: #fbeced;
+
+  /* Semantic surfaces, redefined per theme below */
+  --color-surface: #ffffff;
+  --color-surface-sunken: #f4f5f7;
+  --color-surface-raised: #ffffff;
+  --color-border: #e4e7ec;
+  --color-border-strong: #cfd4dc;
+  --color-text: #101724;
+  --color-text-muted: #5a6472;
+  --color-text-faint: #8a919e;
+  --color-accent: #2f6f63;
+  --color-accent-hover: #275c52;
+  --color-accent-soft: #e8f1ef;
+  --color-accent-contrast: #ffffff;
+
+  /* Typography. Three roles, each earning its place:
+     display for headings, Plex for dense multilingual UI, mono for identifiers. */
+  --font-display: var(--font-display-loaded), 'Segoe UI', system-ui, sans-serif;
+  --font-sans: var(--font-sans-loaded), 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-mono-loaded), ui-monospace, 'Cascadia Code', Consolas, monospace;
+
+  /* Radius by hierarchy, not one value everywhere */
+  --radius-chip: 5px;
+  --radius-control: 7px;
+  --radius-panel: 11px;
+  --radius-modal: 15px;
+
+  --shadow-panel: 0 1px 2px rgb(16 23 36 / 0.04);
+  --shadow-raised: 0 4px 16px -4px rgb(16 23 36 / 0.1), 0 1px 3px rgb(16 23 36 / 0.06);
+  --shadow-modal: 0 24px 60px -12px rgb(16 23 36 / 0.22);
+}
+
+/* Dark theme. Same structure, inverted ground; the accent lifts so it stays
+   legible against a dark surface without turning neon. */
+.dark {
+  --color-surface: #131a25;
+  --color-surface-sunken: #0c111a;
+  --color-surface-raised: #1a2231;
+  --color-border: #232c3a;
+  --color-border-strong: #333e50;
+  --color-text: #e8ebf0;
+  --color-text-muted: #98a1b0;
+  --color-text-faint: #6c7686;
+  --color-accent: #4d9c8c;
+  --color-accent-hover: #5fb0a0;
+  --color-accent-soft: #16302b;
+  --color-accent-contrast: #08120f;
+  --color-signal: #4d9c8c;
+  --color-signal-soft: #16302b;
+  --color-amber: #d99a4a;
+  --color-amber-soft: #322415;
+  --color-rose: #d97580;
+  --color-rose-soft: #34191d;
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-raised: 0 4px 16px -4px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.3);
+  --shadow-modal: 0 24px 60px -12px rgb(0 0 0 / 0.65);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    background-color: var(--color-surface-sunken);
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-surface-sunken);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv02', 'cv03', 'cv04';
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.018em;
+    font-weight: 600;
+  }
+
+  /* One visible focus treatment everywhere. Keyboard users should never have to
+     guess where they are, and a consistent ring is easier to trust than a
+     per-component variation. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  ::selection {
+    background-color: var(--color-accent-soft);
+    color: var(--color-text);
+  }
+
+  /* Scrollbars: present but quiet. */
+  ::-webkit-scrollbar {
+    width: 11px;
+    height: 11px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--color-border-strong);
+    border-radius: 99px;
+    border: 3px solid var(--color-surface-sunken);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-text-faint);
+  }
+}
+
+@layer utilities {
+  .surface {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-panel);
+  }
+
+  /* The ledger: rows separated by hairlines inside one surface, rather than a
+     shadow around every record. */
+  .ledger > * + * {
+    border-top: 1px solid var(--color-border);
+  }
+
+  .numeric {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.8125rem;
+  }
+
+  .prose-body {
+    max-width: 68ch;
+    line-height: 1.7;
+  }
+
+  .scroll-x {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+}
+
+/*
+ * The one orchestrated moment in the product: the live run console, where step
+ * rows arrive as they complete. Everything else uses a flat 120ms transition.
+ * Scattering motion across the interface would make this stop meaning anything.
+ */
+@keyframes flow-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes flow-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.animate-row-in {
+  animation: flow-row-in 260ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+.animate-working {
+  animation: flow-pulse 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

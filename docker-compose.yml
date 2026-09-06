@@ -1,0 +1,78 @@
+# Production-shaped deployment: every service in its own container, one shared
+# data volume, the gateway as the only published backend port.
+#
+#   docker compose up --build
+#
+# For local development prefer `npm run dev`, which is faster and hot-reloads.
+
+x-service: &service
+  build:
+    context: .
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  environment: &env
+    NODE_ENV: production
+    FLOW_DATA_DIR: /app/data
+    FLOW_SERVICE_HOST: gateway
+    LOG_LEVEL: ${LOG_LEVEL:-info}
+    OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    PROFILES_URL: http://profiles:4001
+    TARGETS_URL: http://targets:4002
+    PROMPTS_URL: http://prompts:4003
+    RESEARCH_URL: http://research:4004
+    ANALYSIS_URL: http://analysis:4005
+    OUTREACH_URL: http://outreach:4006
+    ORCHESTRATOR_URL: http://orchestrator:4007
+  volumes:
+    - flow-data:/app/data
+
+services:
+  gateway:
+    <<: *service
+    command: node services/gateway/src/index.js
+    ports: ['4000:4000']
+    depends_on: [profiles, targets, prompts, orchestrator]
+
+  profiles:
+    <<: *service
+    command: node services/profiles/src/index.js
+
+  targets:
+    <<: *service
+    command: node services/targets/src/index.js
+
+  prompts:
+    <<: *service
+    command: node services/prompts/src/index.js
+
+  research:
+    <<: *service
+    command: node services/research/src/index.js
+
+  analysis:
+    <<: *service
+    command: node services/analysis/src/index.js
+
+  outreach:
+    <<: *service
+    command: node services/outreach/src/index.js
+
+  orchestrator:
+    <<: *service
+    command: node services/orchestrator/src/index.js
+    depends_on: [profiles, targets, prompts, research, analysis, outreach]
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+    restart: unless-stopped
+    ports: ['3000:3000']
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://gateway:4000
+    depends_on: [gateway]
+
+volumes:
+  flow-data:

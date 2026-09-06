@@ -1,0 +1,25 @@
+{
+  "name": "study-abroad",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Flow — a microservice platform that automates study-abroad outreach for applicants anywhere in the world.",
+  "license": "MIT",
+  "engines": { "node": ">=20.11" },
+  "workspaces": ["packages/*", "services/*", "apps/*"],
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "dev:services": "node scripts/dev.js --only=services",
+    "dev:web": "node scripts/dev.js --only=web",
+    "build": "npm run build --workspace @flow/web",
+    "start": "node scripts/dev.js --prod",
+    "seed": "node scripts/seed.js",
+    "reset": "node scripts/seed.js --force",
+    "health": "node scripts/health.js",
+    "lint": "npm run lint --workspace @flow/web",
+    "typecheck": "npm run typecheck --workspace @flow/web"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7"
+  }
+}

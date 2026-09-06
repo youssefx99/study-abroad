@@ -1,0 +1,43 @@
+# dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# environment & secrets
+.env
+.env.local
+.env.*.local
+data/secrets.json
+
+# runtime data store (seeded on first run)
+data/*.json
+!data/.gitkeep
+
+# next.js
+apps/web/.next/
+apps/web/out/
+apps/web/next-env.d.ts
+
+# build output
+dist/
+build/
+*.tsbuildinfo
+
+# logs
+*.log
+npm-debug.log*
+logs/
+
+# personal documents and the pre-microservice prototype
+legacy/
+*.pdf
+
+# editors / os
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# superseded pre-microservice spec, kept locally for reference
+docs/
