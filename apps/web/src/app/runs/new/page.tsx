@@ -113,16 +113,22 @@ function RunWizard() {
     if (!pipelineId && pipelines?.length) setPipelineId(pipelines[0].id);
   }, [pipelines, pipelineId]);
 
+  // Seeded once. SWR revalidates on window focus, and without this guard
+  // switching tabs and back would silently revert every choice made on the
+  // options step to the account defaults.
+  const seededFromSettings = React.useRef(false);
+
   React.useEffect(() => {
-    if (settings) {
-      setOptions((current) => ({
-        ...current,
-        language: settings.defaultLanguage,
-        tone: settings.defaultTone,
-        wordCount: settings.defaultWordCount,
-        concurrency: settings.defaultConcurrency,
-      }));
-    }
+    if (!settings || seededFromSettings.current) return;
+    seededFromSettings.current = true;
+
+    setOptions((current) => ({
+      ...current,
+      language: settings.defaultLanguage,
+      tone: settings.defaultTone,
+      wordCount: settings.defaultWordCount,
+      concurrency: settings.defaultConcurrency,
+    }));
   }, [settings]);
 
   const profile = profiles?.find((p) => p.id === profileId);
@@ -351,6 +357,7 @@ function RunWizard() {
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       placeholder="Filter targets"
+                      aria-label="Filter targets"
                       className="pl-9"
                     />
                   </div>

@@ -120,7 +120,10 @@ function SettingsContent() {
 
             <div className="p-5">
               <TabsContent value="keys">
-                <ApiKeyPanel settings={draft} onChanged={() => mutate()} />
+                {/* Read from the SWR copy, not the local draft: the key state
+                    is server-owned and `draft` is seeded once, so a saved or
+                    cleared key would otherwise keep showing the old value. */}
+                <ApiKeyPanel settings={data ?? draft} onChanged={() => mutate()} />
               </TabsContent>
 
               <TabsContent value="models" className="max-w-2xl space-y-5">

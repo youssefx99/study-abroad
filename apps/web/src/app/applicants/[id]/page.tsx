@@ -105,7 +105,9 @@ export default function ApplicantEditorPage({ params }: { params: Promise<{ id: 
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  });
+    // `save` is stable enough here; re-binding on every keystroke was pure churn.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirty, saving]);
 
   if (error) {
     return (
@@ -255,8 +257,10 @@ export default function ApplicantEditorPage({ params }: { params: Promise<{ id: 
                   </div>
 
                   <Field label="Preferred destinations" hint="Countries or regions you are targeting.">
-                    {() => (
+                    {({ id: fieldId, describedBy }) => (
                       <ChipListEditor
+                        id={fieldId}
+                        aria-describedby={describedBy}
                         values={draft.targetCountries}
                         onChange={(values) => update('targetCountries', values)}
                         placeholder="Add a country and press Enter"
@@ -426,8 +430,10 @@ export default function ApplicantEditorPage({ params }: { params: Promise<{ id: 
                     label="Research interests"
                     hint="These drive the fit analysis. Be specific: a topic beats a discipline."
                   >
-                    {() => (
+                    {({ id: fieldId, describedBy }) => (
                       <ChipListEditor
+                        id={fieldId}
+                        aria-describedby={describedBy}
                         values={draft.researchInterests}
                         onChange={(values) => update('researchInterests', values)}
                         placeholder="Add an interest and press Enter"
@@ -451,8 +457,9 @@ export default function ApplicantEditorPage({ params }: { params: Promise<{ id: 
                   </Field>
 
                   <Field label="Skills">
-                    {() => (
+                    {({ id: fieldId }) => (
                       <ChipListEditor
+                        id={fieldId}
                         values={draft.skills}
                         onChange={(values) => update('skills', values)}
                         placeholder="Add a skill and press Enter"
@@ -609,8 +616,14 @@ export default function ApplicantEditorPage({ params }: { params: Promise<{ id: 
 
                 <TabsContent value="extra" className="space-y-6">
                   <Field label="Tags" hint="For your own filtering.">
-                    {() => (
-                      <ChipListEditor values={draft.tags} onChange={(values) => update('tags', values)} placeholder="Add a tag" />
+                    {({ id: fieldId, describedBy }) => (
+                      <ChipListEditor
+                        id={fieldId}
+                        aria-describedby={describedBy}
+                        values={draft.tags}
+                        onChange={(values) => update('tags', values)}
+                        placeholder="Add a tag"
+                      />
                     )}
                   </Field>
                   <CustomFieldsEditor fields={draft.customFields} onChange={(fields) => update('customFields', fields)} />

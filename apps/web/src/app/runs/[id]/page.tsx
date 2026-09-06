@@ -500,10 +500,13 @@ function MessageEditor({
   const [body, setBody] = React.useState(output.body);
   const [saving, setSaving] = React.useState(false);
 
+  // Only resync while the editor is closed. A concurrent update from another
+  // tab must not replace text someone is part-way through writing.
   React.useEffect(() => {
+    if (editing) return;
     setSubject(output.subject);
     setBody(output.body);
-  }, [output.subject, output.body]);
+  }, [output.subject, output.body, editing]);
 
   const claims = Array.isArray(output.claims_used) ? (output.claims_used as string[]) : [];
   const risks = Array.isArray(output.remaining_risks) ? (output.remaining_risks as string[]) : [];

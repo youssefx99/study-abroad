@@ -219,11 +219,18 @@ export function ChipListEditor({
   onChange,
   placeholder,
   suggestions,
+  id,
+  'aria-label': ariaLabel,
+  'aria-describedby': describedBy,
 }: {
   values: string[];
   onChange: (values: string[]) => void;
   placeholder: string;
   suggestions?: string[];
+  /** Threaded from the wrapping Field so the input has an accessible name. */
+  id?: string;
+  'aria-label'?: string;
+  'aria-describedby'?: string;
 }) {
   const [draft, setDraft] = React.useState('');
   const listId = React.useId();
@@ -265,6 +272,9 @@ export function ChipListEditor({
 
       <div className="flex gap-2">
         <Input
+          id={id}
+          aria-label={ariaLabel}
+          aria-describedby={describedBy}
           value={draft}
           list={suggestions ? listId : undefined}
           onChange={(event) => setDraft(event.target.value)}

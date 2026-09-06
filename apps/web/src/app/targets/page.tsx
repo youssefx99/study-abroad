@@ -119,6 +119,7 @@ export default function TargetsPage() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search names, organisations, notes, focus areas"
+              aria-label="Search targets"
               className="pl-9"
             />
           </div>
@@ -502,8 +503,14 @@ function TargetDialog({
           </Field>
 
           <Field label="Focus areas" hint="What they work on, as far as you know. Research fills in the rest.">
-            {() => (
-              <ChipListEditor values={form.focusAreas} onChange={(values) => set('focusAreas', values)} placeholder="Add a focus area" />
+            {({ id, describedBy }) => (
+              <ChipListEditor
+                id={id}
+                aria-describedby={describedBy}
+                values={form.focusAreas}
+                onChange={(values) => set('focusAreas', values)}
+                placeholder="Add a focus area"
+              />
             )}
           </Field>
 
@@ -551,7 +558,9 @@ function TargetDialog({
           </Field>
 
           <Field label="Tags">
-            {() => <ChipListEditor values={form.tags} onChange={(values) => set('tags', values)} placeholder="Add a tag" />}
+            {({ id }) => (
+              <ChipListEditor id={id} values={form.tags} onChange={(values) => set('tags', values)} placeholder="Add a tag" />
+            )}
           </Field>
         </DialogBody>
 
@@ -606,7 +615,9 @@ function ImportDialog({ open, onClose, onImported }: { open: boolean; onClose: (
   const [format, setFormat] = React.useState<'json' | 'csv'>('json');
   const [content, setContent] = React.useState('');
   const [preview, setPreview] = React.useState<{ total: number; preview: { row: number; ok: boolean; data: Record<string, unknown> | null; reason: string }[] } | null>(null);
-  const [busy, setBusy] = React.useState(false);
+  // Which action is in flight. Inferring this from whether a preview exists
+  // put the spinner on the wrong button and left Import clickable twice.
+  const [busy, setBusy] = React.useState<'preview' | 'import' | null>(null);
 
   React.useEffect(() => {
     if (!open) {
@@ -616,19 +627,19 @@ function ImportDialog({ open, onClose, onImported }: { open: boolean; onClose: (
   }, [open]);
 
   const runPreview = async () => {
-    setBusy(true);
+    setBusy('preview');
     try {
       const result = await api.post<typeof preview>('/api/targets/import/preview', { format, content });
       setPreview(result);
     } catch (err) {
       toast.error('Could not read that', err instanceof ApiError ? err.message : 'Unexpected error');
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
   const runImport = async () => {
-    setBusy(true);
+    setBusy('import');
     try {
       const result = await api.post<{ imported: number; skipped: { row: number; reason: string }[] }>('/api/targets/import', {
         format,
@@ -643,7 +654,7 @@ function ImportDialog({ open, onClose, onImported }: { open: boolean; onClose: (
     } catch (err) {
       toast.error('Import failed', err instanceof ApiError ? err.message : 'Unexpected error');
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
@@ -748,10 +759,20 @@ function ImportDialog({ open, onClose, onImported }: { open: boolean; onClose: (
           <DialogClose asChild>
             <Button variant="ghost">Cancel</Button>
           </DialogClose>
-          <Button variant="secondary" onClick={runPreview} loading={busy && !preview} disabled={!content.trim()}>
+          <Button
+            variant="secondary"
+            onClick={runPreview}
+            loading={busy === 'preview'}
+            disabled={!content.trim() || busy !== null}
+          >
             Preview
           </Button>
-          <Button variant="primary" onClick={runImport} loading={busy && Boolean(preview)} disabled={!content.trim()}>
+          <Button
+            variant="primary"
+            onClick={runImport}
+            loading={busy === 'import'}
+            disabled={!content.trim() || busy !== null}
+          >
             Import
           </Button>
         </DialogFooter>

@@ -107,6 +107,7 @@ export default function ApplicantsPage() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search by name, field, or country"
+              aria-label="Search applicants"
               className="pl-9"
             />
           </div>

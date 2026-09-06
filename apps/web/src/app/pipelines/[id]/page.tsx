@@ -98,8 +98,13 @@ export default function PipelineBuilderPage({ params }: { params: Promise<{ id: 
         steps: draft.steps.map(({ prompt: _prompt, ...step }) => step),
         tags: draft.tags,
       });
-      await mutate();
-      setDraft(null);
+      // Refetch rather than adopting the PATCH response: only the GET resolves
+      // each step's prompt, which the badges read. Assigning the refreshed copy
+      // directly — instead of clearing the draft and letting the loading gate
+      // repopulate it — keeps the editor mounted, so saving no longer blanks
+      // the page to a spinner.
+      const refreshed = await mutate();
+      if (refreshed) setDraft(refreshed);
       toast.success('Pipeline saved', saved.name);
     } catch (err) {
       toast.error(
@@ -172,6 +177,10 @@ export default function PipelineBuilderPage({ params }: { params: Promise<{ id: 
         }
       />
 
+      {/* A fieldset natively disables every descendant control, which closes
+          the window where an edit made mid-save would be silently discarded by
+          the refreshed copy landing on top of it. */}
+      <fieldset disabled={saving} className="contents">
       <PageBody className="space-y-5">
         {duplicateKeys.length > 0 && (
           <Notice tone="negative" icon={<AlertTriangle />} title="Two steps share an output key">
@@ -360,6 +369,7 @@ export default function PipelineBuilderPage({ params }: { params: Promise<{ id: 
           </div>
         </Panel>
       </PageBody>
+      </fieldset>
     </>
   );
 }
