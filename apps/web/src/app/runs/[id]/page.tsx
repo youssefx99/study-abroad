@@ -54,8 +54,22 @@ export default function RunPage({ params }: { params: Promise<{ id: string }> })
   const [cancelling, setCancelling] = React.useState(false);
   const [streamLost, setStreamLost] = React.useState(false);
 
+  /**
+   * Merge rule between the polled copy and the streamed one.
+   *
+   * While a run is live the stream is always ahead of a refetch, so an SWR
+   * revalidation (a window refocus, say) must not overwrite progress that has
+   * already arrived. Once the run has finished it is static, and the server
+   * copy is the authoritative one.
+   */
   React.useEffect(() => {
-    if (data) setRun((current) => (current && current.id === data.id && current.status !== data.status ? current : data));
+    if (!data) return;
+
+    setRun((current) => {
+      if (!current || current.id !== data.id) return data;
+      if (data.status !== 'running' && data.status !== 'queued') return data;
+      return current;
+    });
   }, [data]);
 
   const isLive = run?.status === 'running' || run?.status === 'queued';
