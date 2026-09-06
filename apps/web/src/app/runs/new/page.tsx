@@ -492,10 +492,7 @@ function RunWizard() {
 
                 {pipelineErrors.length > 0 && (
                   <Notice tone="negative" title="This pipeline cannot run">
-                    {pipelineErrors[0].message}{' '}
-                    <Link href={`/pipelines/${pipelineId}`} className="underline">
-                      Fix it
-                    </Link>
+                    {pipelineErrors[0].message}
                   </Notice>
                 )}
               </section>

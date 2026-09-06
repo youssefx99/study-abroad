@@ -1,3 +1,5 @@
+import { DEFAULT_MODEL } from './constants.js';
+
 /**
  * The prompt library shipped with Flow.
  *
@@ -130,7 +132,7 @@ export function buildDefaultPrompts(createdAt, makeId) {
         systemPrompt: spec.systemPrompt,
         userPrompt: spec.userPrompt,
         config: {
-          model: spec.model,
+          model: spec.model ?? DEFAULT_MODEL,
           temperature: spec.temperature ?? null,
           reasoningEffort: spec.reasoningEffort ?? null,
           maxOutputTokens: spec.maxOutputTokens ?? null,
@@ -150,8 +152,6 @@ export function buildDefaultPrompts(createdAt, makeId) {
         'Reads public sources and returns verifiable facts about any target — a professor, a programme, a lab, or a funding body. Refuses to invent anything.',
       stage: 'research',
       tags: ['built-in', 'web search'],
-      model: 'gpt-5-mini',
-      temperature: 0.2,
       webSearch: true,
       outputSchema: RESEARCH_SCHEMA,
       systemPrompt: `You are a research analyst who gathers verifiable facts about academic and funding targets.
@@ -194,8 +194,7 @@ Do not evaluate fit. Do not write any message. Another step does that.`,
         'Compares the applicant against what research found and returns an honest fit score, talking points, and the gaps worth fixing before sending.',
       stage: 'analysis',
       tags: ['built-in'],
-      model: 'gpt-5-mini',
-      temperature: 0.3,
+
       outputSchema: ANALYSIS_SCHEMA,
       systemPrompt: `You assess whether an applicant and a target are a genuine match.
 
@@ -235,8 +234,7 @@ Judge the fit and return the structured result.
         'Writes the opening message in the applicant’s chosen language and tone, using only facts the earlier steps verified.',
       stage: 'outreach',
       tags: ['built-in'],
-      model: 'gpt-5.1',
-      temperature: 0.5,
+
       outputSchema: OUTREACH_SCHEMA,
       systemPrompt: `You write first-contact messages from applicants to academics, programmes, and funding bodies.
 
@@ -287,8 +285,7 @@ Write it. Then count the words and report the count honestly.`,
         'A second pass that removes filler and unverifiable claims, checks the ask is clear, and reports anything left to verify before sending.',
       stage: 'outreach',
       tags: ['built-in'],
-      model: 'gpt-5.1',
-      temperature: 0.4,
+
       outputSchema: REVIEW_SCHEMA,
       systemPrompt: `You are an editor. You improve a draft message without inventing anything new.
 
@@ -331,8 +328,6 @@ Return the improved subject and body, what you changed, and anything the applica
         'Pulls published entry requirements, documents, fees, and deadlines for a programme, scholarship, or institution.',
       stage: 'research',
       tags: ['built-in', 'web search', 'programmes'],
-      model: 'gpt-5-mini',
-      temperature: 0.2,
       webSearch: true,
       outputSchema: {
         type: 'object',

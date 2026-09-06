@@ -138,12 +138,16 @@ export const STEP_STATUSES = ['pending', 'running', 'succeeded', 'failed', 'skip
  * Unknown models fall back to `default`, and the UI labels the figure as an
  * estimate so nobody mistakes it for a bill.
  */
+/** The model every prompt uses. Not surfaced in the UI — there is no choice to make. */
+export const DEFAULT_MODEL = 'gpt-5.4-mini-2026-03-17';
+
 export const MODEL_PRICING = {
   'gpt-5.1': { input: 1.25, output: 10 },
   'gpt-5': { input: 1.25, output: 10 },
   'gpt-5-mini': { input: 0.25, output: 2 },
   'gpt-5-nano': { input: 0.05, output: 0.4 },
   'o3-deep-research': { input: 10, output: 40 },
+  'gpt-5.4-mini-2026-03-17': { input: 0.25, output: 2 },
   default: { input: 1, output: 4 },
 };
 

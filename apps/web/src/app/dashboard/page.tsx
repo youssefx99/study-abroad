@@ -2,21 +2,12 @@
 
 import Link from 'next/link';
 import useSWR from 'swr';
-import {
-  ArrowRight,
-  UserRound,
-  Target,
-  Workflow,
-  PlayCircle,
-  KeyRound,
-  CircleDot,
-  Inbox,
-} from 'lucide-react';
+import { ArrowRight, UserRound, Target, Workflow, PlayCircle, Inbox } from 'lucide-react';
 import { fetcher } from '@/lib/api';
 import type { Overview, ProfileSummary, Target as TargetRecord, Pipeline } from '@/lib/types';
 import { formatCost, formatNumber, timeAgo } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Panel, PanelHeader, EmptyState, Notice, Progress, Badge } from '@/components/ui/primitives';
+import { Panel, PanelHeader, EmptyState, Progress, Badge } from '@/components/ui/primitives';
 import {
   PageBody,
   PageHeader,
@@ -64,25 +55,6 @@ export default function DashboardPage() {
       />
 
       <PageBody className="space-y-6">
-        {overview?.demoModeActive && (
-          <Notice
-            tone="warning"
-            icon={<CircleDot />}
-            title="Demo mode is on"
-            action={
-              <Button asChild size="sm" variant="secondary">
-                <Link href="/settings">
-                  <KeyRound />
-                  Add a key
-                </Link>
-              </Button>
-            }
-          >
-            Every stage returns representative output instead of calling a model. The whole product works, but nothing is
-            researched and no draft is real. Add an OpenAI API key to run for real.
-          </Notice>
-        )}
-
         <NextStep
           profileCount={profileCount}
           targetCount={targetCount}

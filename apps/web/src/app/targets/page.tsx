@@ -39,9 +39,7 @@ import { PageBody, PageHeader, LoadingBlock, ErrorBlock, ChipListEditor } from '
 export default function TargetsPage() {
   const toast = useToast();
   const [search, setSearch] = React.useState('');
-  const [kind, setKind] = React.useState('');
   const [status, setStatus] = React.useState('');
-  const [country, setCountry] = React.useState('');
   const [selected, setSelected] = React.useState<string[]>([]);
   const [editing, setEditing] = React.useState<Target | null>(null);
   const [adding, setAdding] = React.useState(false);
@@ -49,9 +47,7 @@ export default function TargetsPage() {
 
   const query = new URLSearchParams();
   if (search.trim()) query.set('search', search.trim());
-  if (kind) query.set('kind', kind);
   if (status) query.set('status', status);
-  if (country) query.set('country', country);
 
   const key = `/api/targets${query.toString() ? `?${query}` : ''}`;
   const { data, error, isLoading, mutate } = useSWR<{ data: Target[]; meta: { facets: TargetFacets; total: number } }>(
@@ -62,7 +58,7 @@ export default function TargetsPage() {
 
   const targets = data?.data ?? [];
   const facets = data?.meta?.facets;
-  const hasFilters = Boolean(search || kind || status || country);
+  const hasFilters = Boolean(search || status);
 
   const toggle = (id: string) => {
     setSelected((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]));
@@ -118,33 +114,15 @@ export default function TargetsPage() {
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search names, organisations, notes, focus areas"
+              placeholder="Search names and universities"
               aria-label="Search targets"
               className="pl-9"
             />
           </div>
 
-          <Select value={kind} onChange={(e) => setKind(e.target.value)} className="w-auto min-w-[8.5rem]" aria-label="Filter by kind">
-            <option value="">All kinds</option>
-            {(facets?.kinds ?? []).map((facet) => (
-              <option key={facet.value} value={facet.value}>
-                {meta?.targetKinds.find((k) => k.value === facet.value)?.label ?? facet.value} ({facet.count})
-              </option>
-            ))}
-          </Select>
-
           <Select value={status} onChange={(e) => setStatus(e.target.value)} className="w-auto min-w-[8.5rem]" aria-label="Filter by status">
             <option value="">All statuses</option>
             {(facets?.statuses ?? []).map((facet) => (
-              <option key={facet.value} value={facet.value}>
-                {facet.value} ({facet.count})
-              </option>
-            ))}
-          </Select>
-
-          <Select value={country} onChange={(e) => setCountry(e.target.value)} className="w-auto min-w-[8.5rem]" aria-label="Filter by country">
-            <option value="">All countries</option>
-            {(facets?.countries ?? []).map((facet) => (
               <option key={facet.value} value={facet.value}>
                 {facet.value} ({facet.count})
               </option>
@@ -157,9 +135,7 @@ export default function TargetsPage() {
               size="sm"
               onClick={() => {
                 setSearch('');
-                setKind('');
                 setStatus('');
-                setCountry('');
               }}
             >
               <X />
@@ -338,7 +314,6 @@ export default function TargetsPage() {
       <TargetDialog
         open={adding || Boolean(editing)}
         target={editing}
-        meta={meta}
         onClose={() => {
           setAdding(false);
           setEditing(null);
@@ -357,17 +332,21 @@ function StatusBadge({ status, meta }: { status: string; meta?: Meta }) {
   return <Badge tone={tone}>{option?.label ?? status}</Badge>;
 }
 
-/** Create and edit share one dialog: the fields are identical. */
+/**
+ * Create and edit share one dialog.
+ *
+ * Five fields, matching the shape people already keep these lists in: a name,
+ * where they are, and the links worth reading. Everything the schema can hold
+ * beyond that is either set by a run or not worth asking for up front.
+ */
 function TargetDialog({
   open,
   target,
-  meta,
   onClose,
   onSaved,
 }: {
   open: boolean;
   target: Target | null;
-  meta?: Meta;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -378,10 +357,26 @@ function TargetDialog({
 
   React.useEffect(() => {
     if (!open) return;
-    setForm(target ? { ...emptyTarget(), ...target } : emptyTarget());
+
+    if (!target) {
+      setForm(emptyTarget());
+      return;
+    }
+
+    // Links are stored as a labelled list; unpack them back into the fields.
+    const find = (label: string) => target.links.find((l) => l.label === label)?.url ?? '';
+    const known = new Set(['Website', 'Google Scholar']);
+
+    setForm({
+      name: target.name,
+      university: target.organization,
+      website: find('Website'),
+      googleScholar: find('Google Scholar'),
+      others: target.links.filter((l) => !known.has(l.label)).map((l) => l.url).join('\n'),
+    });
   }, [open, target]);
 
-  const set = <K extends keyof ReturnType<typeof emptyTarget>>(key: K, value: ReturnType<typeof emptyTarget>[K]) => {
+  const set = <K extends keyof ReturnType<typeof emptyTarget>>(key: K, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
   };
 
@@ -389,23 +384,17 @@ function TargetDialog({
     if (!form.name.trim()) return;
     setSaving(true);
 
-    const payload = {
-      kind: form.kind,
-      name: form.name.trim(),
-      organization: form.organization,
-      department: form.department,
-      country: form.country,
-      city: form.city,
-      email: form.email,
-      focusAreas: form.focusAreas,
-      deadline: form.deadline,
-      language: form.language,
-      status: form.status,
-      priority: form.priority,
-      notes: form.notes,
-      tags: form.tags,
-      links: form.links,
+    const links: { id: string; label: string; url: string }[] = [];
+    const add = (label: string, url: string) => {
+      const cleaned = url.trim();
+      if (cleaned) links.push({ id: `lnk_${Math.random().toString(36).slice(2, 9)}`, label, url: cleaned });
     };
+
+    add('Website', form.website);
+    add('Google Scholar', form.googleScholar);
+    for (const line of form.others.split('\n')) add('Link', line);
+
+    const payload = { name: form.name.trim(), organization: form.university.trim(), links };
 
     try {
       if (target) await api.patch(`/api/targets/${target.id}`, payload);
@@ -438,128 +427,52 @@ function TargetDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent
-        wide
-        title={target ? 'Edit target' : 'Add a target'}
-        description="Only a name is required. Everything else improves the research and the draft."
-      >
+      <DialogContent title={target ? 'Edit target' : 'Add a target'} description="Only a name is required.">
         <DialogBody className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-            <Field label="Kind">
-              {({ id }) => (
-                <Select id={id} value={form.kind} onChange={(e) => set('kind', e.target.value)}>
-                  {(meta?.targetKinds ?? []).map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-            <Field label="Name" required hint={meta?.targetKinds.find((k) => k.value === form.kind)?.hint}>
-              {({ id }) => (
-                <Input id={id} autoFocus value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Prof. Lena Hartmann" />
-              )}
-            </Field>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Organisation">
-              {({ id }) => <Input id={id} value={form.organization} onChange={(e) => set('organization', e.target.value)} />}
-            </Field>
-            <Field label="Department or group">
-              {({ id }) => <Input id={id} value={form.department} onChange={(e) => set('department', e.target.value)} />}
-            </Field>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Country">{({ id }) => <Input id={id} value={form.country} onChange={(e) => set('country', e.target.value)} />}</Field>
-            <Field label="City">{({ id }) => <Input id={id} value={form.city} onChange={(e) => set('city', e.target.value)} />}</Field>
-            <Field label="Email">{({ id }) => <Input id={id} value={form.email} onChange={(e) => set('email', e.target.value)} />}</Field>
-          </div>
-
-          <Field label="Links" hint="Website, Scholar, programme page. One per line as: Label | URL">
+          <Field label="Name" required>
             {({ id }) => (
-              <Textarea
+              <Input id={id} autoFocus value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Dr. Bonita Sharif" />
+            )}
+          </Field>
+
+          <Field label="University">
+            {({ id }) => <Input id={id} value={form.university} onChange={(e) => set('university', e.target.value)} placeholder="UNL" />}
+          </Field>
+
+          <Field label="Website">
+            {({ id }) => (
+              <Input
                 id={id}
-                rows={3}
-                value={form.links.map((l) => `${l.label} | ${l.url}`).join('\n')}
-                onChange={(e) =>
-                  set(
-                    'links',
-                    e.target.value
-                      .split('\n')
-                      .map((line) => {
-                        const [label, ...rest] = line.split('|');
-                        return { id: `lnk_${Math.random().toString(36).slice(2, 9)}`, label: label.trim(), url: rest.join('|').trim() };
-                      })
-                      .filter((l) => l.label || l.url),
-                  )
-                }
-                placeholder={'Website | https://example.edu/hartmann\nGoogle Scholar | https://scholar.google.com/...'}
+                value={form.website}
+                onChange={(e) => set('website', e.target.value)}
+                placeholder="https://computing.unl.edu/person/bonita-sharif/"
                 className="font-[family-name:var(--font-mono)] text-xs"
               />
             )}
           </Field>
 
-          <Field label="Focus areas" hint="What they work on, as far as you know. Research fills in the rest.">
-            {({ id, describedBy }) => (
-              <ChipListEditor
+          <Field label="Google Scholar">
+            {({ id }) => (
+              <Input
                 id={id}
-                aria-describedby={describedBy}
-                values={form.focusAreas}
-                onChange={(values) => set('focusAreas', values)}
-                placeholder="Add a focus area"
+                value={form.googleScholar}
+                onChange={(e) => set('googleScholar', e.target.value)}
+                placeholder="https://scholar.google.com/citations?user=..."
+                className="font-[family-name:var(--font-mono)] text-xs"
               />
             )}
           </Field>
 
-          <div className="grid gap-4 sm:grid-cols-4">
-            <Field label="Status">
-              {({ id }) => (
-                <Select id={id} value={form.status} onChange={(e) => set('status', e.target.value)}>
-                  {(meta?.targetStatuses ?? []).map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-            <Field label="Priority" hint="1 is highest">
-              {({ id }) => (
-                <Select id={id} value={String(form.priority)} onChange={(e) => set('priority', Number(e.target.value))}>
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-            <Field label="Write in" hint="Language for this target">
-              {({ id }) => (
-                <Select id={id} value={form.language} onChange={(e) => set('language', e.target.value)}>
-                  {(meta?.languages ?? []).map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-            <Field label="Deadline" hint="Free text">
-              {({ id }) => <Input id={id} value={form.deadline} onChange={(e) => set('deadline', e.target.value)} placeholder="1 Dec 2026" />}
-            </Field>
-          </div>
-
-          <Field label="Notes" hint="Anything you already know. This goes into the prompt.">
-            {({ id }) => <Textarea id={id} rows={3} value={form.notes} onChange={(e) => set('notes', e.target.value)} />}
-          </Field>
-
-          <Field label="Tags">
+          <Field label="Other links" hint="One per line.">
             {({ id }) => (
-              <ChipListEditor id={id} values={form.tags} onChange={(values) => set('tags', values)} placeholder="Add a tag" />
+              <Textarea
+                id={id}
+                rows={3}
+                value={form.others}
+                onChange={(e) => set('others', e.target.value)}
+                placeholder={'https://www.shbonita.me/\nhttp://www.i-trace.org'}
+                className="font-[family-name:var(--font-mono)] text-xs"
+              />
             )}
           </Field>
         </DialogBody>
@@ -583,24 +496,26 @@ function TargetDialog({
   );
 }
 
+const JSON_EXAMPLE = `[
+  {
+    "name": "Dr. Bonita Sharif",
+    "university": "UNL",
+    "website": "https://computing.unl.edu/person/bonita-sharif/",
+    "google_scholar": "https://scholar.google.com/citations?user=2WeXBokAAAAJ",
+    "others": [
+      "https://www.shbonita.me/",
+      "http://www.i-trace.org"
+    ]
+  }
+]`;
+
+const CSV_EXAMPLE = [
+  'name,university,website,google_scholar,others',
+  'Dr. Bonita Sharif,UNL,https://computing.unl.edu/person/bonita-sharif/,https://scholar.google.com/citations?user=2WeXBokAAAAJ,https://www.shbonita.me/;http://www.i-trace.org',
+].join('\n');
+
 function emptyTarget() {
-  return {
-    kind: 'professor',
-    name: '',
-    organization: '',
-    department: '',
-    country: '',
-    city: '',
-    email: '',
-    focusAreas: [] as string[],
-    deadline: '',
-    language: 'en',
-    status: 'new',
-    priority: 3,
-    notes: '',
-    tags: [] as string[],
-    links: [] as { id: string; label: string; url: string }[],
-  };
+  return { name: '', university: '', website: '', googleScholar: '', others: '' };
 }
 
 /**
@@ -677,10 +592,9 @@ function ImportDialog({ open, onClose, onImported }: { open: boolean; onClose: (
 
             <TabsContent value="json" className="pt-4">
               <Notice tone="neutral">
-                An array of objects. Recognised keys include <code className="font-[family-name:var(--font-mono)]">name</code>,{' '}
-                <code className="font-[family-name:var(--font-mono)]">organization</code> or{' '}
+                An array of objects with{' '}
+                <code className="font-[family-name:var(--font-mono)]">name</code>,{' '}
                 <code className="font-[family-name:var(--font-mono)]">university</code>,{' '}
-                <code className="font-[family-name:var(--font-mono)]">country</code>,{' '}
                 <code className="font-[family-name:var(--font-mono)]">website</code>,{' '}
                 <code className="font-[family-name:var(--font-mono)]">google_scholar</code>, and{' '}
                 <code className="font-[family-name:var(--font-mono)]">others</code>.
@@ -689,7 +603,9 @@ function ImportDialog({ open, onClose, onImported }: { open: boolean; onClose: (
 
             <TabsContent value="csv" className="pt-4">
               <Notice tone="neutral">
-                First row is the header. Column names are matched loosely, so a spreadsheet export usually works as-is.
+                First row is the header:{' '}
+                <code className="font-[family-name:var(--font-mono)]">name,university,website,google_scholar,others</code>.
+                Put several other links in one cell separated by semicolons.
               </Notice>
             </TabsContent>
           </Tabs>
@@ -718,8 +634,8 @@ function ImportDialog({ open, onClose, onImported }: { open: boolean; onClose: (
                 }}
                 placeholder={
                   format === 'json'
-                    ? '[\n  { "name": "Prof. Lena Hartmann", "university": "RWTH Aachen", "country": "Germany", "website": "https://…" }\n]'
-                    : 'name,organization,country,website\nProf. Lena Hartmann,RWTH Aachen,Germany,https://…'
+                    ? JSON_EXAMPLE
+                    : CSV_EXAMPLE
                 }
                 className="font-[family-name:var(--font-mono)] text-xs"
               />

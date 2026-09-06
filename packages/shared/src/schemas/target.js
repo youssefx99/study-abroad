@@ -72,7 +72,7 @@ export const targetImportRowSchema = z
     google_scholar: z.string().optional(),
     scholar: z.string().optional(),
     links: z.array(z.union([z.string(), linkSchema.partial()])).optional(),
-    others: z.array(z.string()).optional(),
+    others: z.union([z.array(z.string()), z.string()]).optional(),
     focusAreas: z.union([z.string(), z.array(z.string())]).optional(),
     deadline: z.string().optional(),
     language: z.string().optional(),
@@ -120,7 +120,11 @@ export function normaliseImportRow(row, makeId) {
 
   addLink('Website', parsed.website);
   addLink('Google Scholar', parsed.google_scholar ?? parsed.scholar);
-  for (const other of parsed.others ?? []) addLink('Link', other);
+
+  // `others` is an array in JSON and a single delimited cell in a spreadsheet
+  // export, so accept both rather than making people reshape their list.
+  const others = Array.isArray(parsed.others) ? parsed.others : toList(parsed.others);
+  for (const other of others) addLink('Link', other);
   for (const link of parsed.links ?? []) {
     if (typeof link === 'string') addLink('Link', link);
     else addLink(link.label ?? 'Link', link.url ?? '');

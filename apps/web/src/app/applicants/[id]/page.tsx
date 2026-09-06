@@ -19,7 +19,6 @@ import {
   ErrorBlock,
   ChipListEditor,
   RepeaterSection,
-  CustomFieldsEditor,
   CopyButton,
 } from '@/components/shared';
 
@@ -163,7 +162,6 @@ export default function ApplicantEditorPage({ params }: { params: Promise<{ id: 
                 <TabsTrigger value="research">Research</TabsTrigger>
                 <TabsTrigger value="experience">Experience</TabsTrigger>
                 <TabsTrigger value="links">Links &amp; documents</TabsTrigger>
-                <TabsTrigger value="extra">Extra</TabsTrigger>
                 <TabsTrigger value="preview">Preview</TabsTrigger>
               </TabsList>
 
@@ -612,21 +610,6 @@ export default function ApplicantEditorPage({ params }: { params: Promise<{ id: 
                       </div>
                     )}
                   />
-                </TabsContent>
-
-                <TabsContent value="extra" className="space-y-6">
-                  <Field label="Tags" hint="For your own filtering.">
-                    {({ id: fieldId, describedBy }) => (
-                      <ChipListEditor
-                        id={fieldId}
-                        aria-describedby={describedBy}
-                        values={draft.tags}
-                        onChange={(values) => update('tags', values)}
-                        placeholder="Add a tag"
-                      />
-                    )}
-                  </Field>
-                  <CustomFieldsEditor fields={draft.customFields} onChange={(fields) => update('customFields', fields)} />
                 </TabsContent>
 
                 <TabsContent value="preview" className="space-y-4">

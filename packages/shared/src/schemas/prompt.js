@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_MODEL } from '../constants.js';
 
 /**
  * Prompt templates are first-class, user-owned data.
@@ -19,12 +20,12 @@ export const promptVariableSchema = z.object({
 });
 
 export const modelConfigSchema = z.object({
-  model: trimmed.min(1).max(120).default('gpt-5-mini'),
+  model: trimmed.min(1).max(120).default(DEFAULT_MODEL),
   /**
    * Kept nullable because reasoning models reject an explicit temperature.
    * `null` means "do not send the parameter at all".
    */
-  temperature: z.number().min(0).max(2).nullable().default(0.4),
+  temperature: z.number().min(0).max(2).nullable().default(null),
   reasoningEffort: z.enum(['minimal', 'low', 'medium', 'high']).nullable().default(null),
   maxOutputTokens: z.number().int().min(64).max(128000).nullable().default(null),
   webSearch: z.boolean().default(false),
