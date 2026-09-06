@@ -20,7 +20,8 @@ import {
   Globe,
   CircleDot,
 } from 'lucide-react';
-import { api, fetcher, ApiError } from '@/lib/api';
+import { api, fetcher, ApiError, CLOUD_MODE } from '@/lib/api';
+import { ApiKeyCard, useApiKeyState } from '@/components/api-key-card';
 import type { ProfileSummary, Target, Pipeline, Meta, Settings, Run } from '@/lib/types';
 import { cn, formatCost, formatNumber, truncate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -86,6 +87,7 @@ function RunWizard() {
   const [selectedTargets, setSelectedTargets] = React.useState<string[]>([]);
   const [search, setSearch] = React.useState('');
   const [launching, setLaunching] = React.useState(false);
+  const keyState = useApiKeyState();
 
   const [options, setOptions] = React.useState({
     language: 'en',
@@ -162,7 +164,9 @@ function RunWizard() {
   // nobody reads it as a quote.
   const estimatedTokens = modelCalls * (usesWebSearch ? 9000 : 4500);
   const estimatedCost = (estimatedTokens / 1_000_000) * 3;
-  const demoActive = options.demoMode || Boolean(settings?.demoModeActive);
+  // Hosted, the key lives in this browser, so that is what decides whether a
+  // run can be real — not anything the server knows.
+  const demoActive = options.demoMode || (CLOUD_MODE ? !keyState.present : Boolean(settings?.demoModeActive));
 
   const launch = async () => {
     setLaunching(true);
@@ -589,12 +593,18 @@ function RunWizard() {
                     label="Demo mode"
                     hint="Produce representative output without calling a model. Nothing is researched and nothing is charged."
                     checked={demoActive}
-                    disabled={settings?.demoModeActive && !settings.apiKey.present}
+                    disabled={CLOUD_MODE ? !keyState.present : settings?.demoModeActive && !settings.apiKey.present}
                     onCheckedChange={(value) => setOptions({ ...options, demoMode: value })}
                   />
                 </div>
 
-                {settings && !settings.apiKey.present && (
+                {CLOUD_MODE && !keyState.present && (
+                  <div className="rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface-sunken)] p-4">
+                    <ApiKeyCard compact />
+                  </div>
+                )}
+
+                {!CLOUD_MODE && settings && !settings.apiKey.present && (
                   <Notice tone="warning" icon={<CircleDot />}>
                     No API key is configured, so this run will be a demo whatever you choose here.{' '}
                     <Link href="/settings" className="underline">
@@ -646,6 +656,13 @@ function RunWizard() {
                     )}
                   </ul>
                 </div>
+
+                {CLOUD_MODE && !demoActive && (
+                  <Notice tone="neutral" icon={<CircleDot />} title="Keep this tab open">
+                    The run is orchestrated by this tab, so closing it stops the work. Everything finished up to that
+                    point is already saved.
+                  </Notice>
+                )}
 
                 {!demoActive && chosenTargets.length > 20 && (
                   <Notice tone="warning" icon={<AlertTriangle />} title="That is a large run">

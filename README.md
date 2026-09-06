@@ -47,13 +47,7 @@ That starts eight backend services and the web app in one terminal. Stop everyth
 
 Flow works fully with no API key. Every stage returns representative, correctly structured output instead of calling a model, and says so on every screen. You can click through the entire product, run pipelines, and read results before spending anything.
 
-To run for real, add an OpenAI key under **Settings → API key**, or put it in `.env`:
-
-```
-OPENAI_API_KEY=sk-...
-```
-
-The key is written to `data/secrets.json` (gitignored, owner-only permissions), read from disk by the services that need it, and **never** returned by any endpoint or sent between services.
+To run for real, add your own OpenAI key under **Settings → API key**.
 
 ### A note on the security model
 
@@ -63,6 +57,43 @@ There is no authentication, by design — this is a single-user tool holding you
 - CORS is restricted to the web app's origin, so a malicious tab in your browser cannot read your data from `localhost`.
 
 Both are configurable (`FLOW_BIND_HOST`, `FLOW_WEB_ORIGIN`) for container deployments, where isolation comes from published ports instead. **Do not set `FLOW_BIND_HOST=0.0.0.0` on a shared network** — anyone who can reach the port would have full read and write access to your profiles, CVs, and model budget.
+
+---
+
+## Deploy it for other people
+
+```bash
+npm i -g vercel
+vercel --prod
+```
+
+That is the whole deployment. No database, no environment variables, and no key of yours.
+
+`vercel.json` sets `NEXT_PUBLIC_FLOW_MODE=cloud`, which changes where things live:
+
+| | Self-hosted (`npm run dev`) | Hosted (Vercel) |
+|---|---|---|
+| Data | JSON files in `data/` | Each visitor's own browser |
+| Backend | Eight services behind a gateway | One route: `/api/execute` |
+| API key | Yours, entered once | **Each visitor's own**, in their browser |
+| Live progress | Server-sent events | The tab running the work |
+
+### About the key
+
+**This app never holds an OpenAI key.** `/api/execute` does not read `OPENAI_API_KEY` — there is no fallback in the code, so there is none to remove or misconfigure later. A request without a key is refused even when the server environment has one.
+
+Each visitor enters their own key under **Settings → API key**, or inline on the last step of the run wizard. It stays in their browser, is sent only on the calls they trigger, and is never written into a run record, a log, or an exported workspace. "Remember on this device" is **off** by default, so on a shared computer the key dies with the tab.
+
+The consequence, stated plainly: **every visitor pays for their own runs, and you can neither see nor use their key.** That is what makes the link safe to share.
+
+### What to expect from the hosted version
+
+- **Data does not follow people between browsers or devices.** There are no accounts. Settings → System has an export button.
+- **The tab does the orchestrating**, so closing it stops a run in progress. Finished targets are already saved, and the wizard says so before launch.
+- **Web-search research can outrun the function limit.** Vercel allows 60s on Hobby and up to 300s with Fluid compute; `vercel.json` asks for 300. If research times out, use a faster model for that stage or turn web search off on the prompt.
+- Only the most recent 40 runs are kept, since browser storage is finite.
+
+Any host that runs Next.js works the same way — set `NEXT_PUBLIC_FLOW_MODE=cloud` at build time.
 
 ---
 

@@ -18,8 +18,10 @@ import {
   Menu,
   X,
   CircleDot,
+  KeyRound,
 } from 'lucide-react';
-import { fetcher } from '@/lib/api';
+import { fetcher, CLOUD_MODE } from '@/lib/api';
+import { useApiKeyState } from '@/components/api-key-card';
 import type { HealthReport, Overview } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -146,7 +148,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Settings className="size-4" />
             Settings
           </Link>
-          <SystemStatus />
+          {!CLOUD_MODE && <SystemStatus />}
         </div>
       </aside>
 
@@ -219,6 +221,22 @@ function ThemeToggle() {
  */
 function DemoModeIndicator() {
   const { data } = useSWR<Overview>('/api/overview', fetcher, { refreshInterval: 30_000 });
+  const keyState = useApiKeyState();
+
+  // Hosted, the absence of a key is the single most useful thing to surface:
+  // it is the one step between the visitor and a real draft, and only they can
+  // supply it.
+  if (CLOUD_MODE && !keyState.present) {
+    return (
+      <Button asChild size="sm" variant="secondary">
+        <Link href="/settings">
+          <KeyRound />
+          Add your API key
+        </Link>
+      </Button>
+    );
+  }
+
   if (!data?.demoModeActive) return null;
 
   return (

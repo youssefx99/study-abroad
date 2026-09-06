@@ -197,6 +197,30 @@ Numbered markers appear only where there is a real sequence — the run wizard s
 
 ---
 
+## Two deployment shapes
+
+The same UI runs against two very different backends, and the switch lives in exactly one place: `apps/web/src/lib/api.ts`.
+
+**Self-hosted** is the eight-service architecture described above.
+
+**Hosted** (`NEXT_PUBLIC_FLOW_MODE=cloud`) has no services at all. Serverless functions cannot hold a run in flight — each invocation is isolated and short-lived, so an orchestrator process and an SSE stream have nothing to live in — and the filesystem is read-only. So:
+
+- `lib/cloud/local-api.ts` serves the gateway's REST surface from browser storage, importing the same schemas and prompt library from `@flow/shared` that the services use. One definition, two consumers.
+- `lib/cloud/run-engine.ts` runs the pipeline in the tab that started it, calling `/api/execute` once per step. Progress goes to subscribers directly; there is no stream to reconnect to.
+- `app/api/execute/route.ts` is the only server code, and it is stateless.
+
+Because both modes speak the identical REST contract, every screen, form, and error path is exercised by both. Neither can quietly drift.
+
+### Why the key is not on the server
+
+A hosted deployment serves strangers. Storing a key server-side would mean one of two things, both wrong: the operator pays for everyone's runs, or the first visitor's key gets spent by the rest.
+
+So the key belongs to the person making the call. It lives in their browser, travels only on the request that needs it, and `/api/execute` never reads `process.env.OPENAI_API_KEY` — not as a fallback, not as an override. There is no code path to an operator-held key, which is a stronger guarantee than a configuration setting could be.
+
+The tradeoff, stated honestly: the key does cross the wire to this app's own function, over HTTPS, on its way to OpenAI. That is unavoidable, because OpenAI does not permit browser-origin calls, and the function keeps no copy. Anyone unwilling to accept that can self-host, where nothing leaves their machine.
+
+---
+
 ## Where to change things
 
 | To change | Edit |
@@ -207,4 +231,5 @@ Numbered markers appear only where there is a real sequence — the run wizard s
 | Add a field to the applicant or target model | The relevant schema in `packages/shared/src/schemas/`, then the editor tab |
 | Swap the database | `packages/store/src/index.js` |
 | Add a new stage service | Copy `services/analysis`, change the name and port, add it to `SERVICE_REGISTRY` and the gateway routes |
+| Deploy for other people | `vercel --prod`. See the README. |
 | Change how results are displayed | `StructuredOutput` in `apps/web/src/components/shared.tsx` derives its layout from the data shape, so a new schema field renders without a code change |

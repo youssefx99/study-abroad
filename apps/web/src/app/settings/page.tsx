@@ -4,9 +4,12 @@ import * as React from 'react';
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
-import { KeyRound, Save, Trash2, CheckCircle2, XCircle, Lock, Server, RefreshCw, Palette, Sun, Moon, Monitor } from 'lucide-react';
+import { KeyRound, Save, Trash2, CheckCircle2, XCircle, Lock, Server, RefreshCw, Palette, Sun, Moon, Monitor, Download } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { api, fetcher, ApiError } from '@/lib/api';
+import { api, fetcher, ApiError, CLOUD_MODE } from '@/lib/api';
+import { ApiKeyCard } from '@/components/api-key-card';
+import { exportWorkspace, clearWorkspace, workspaceSize } from '@/lib/cloud/store';
+import { downloadFile } from '@/lib/utils';
 import type { Settings, Meta, HealthReport } from '@/lib/types';
 import { cn, formatDuration } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -120,10 +123,16 @@ function SettingsContent() {
 
             <div className="p-5">
               <TabsContent value="keys">
-                {/* Read from the SWR copy, not the local draft: the key state
-                    is server-owned and `draft` is seeded once, so a saved or
-                    cleared key would otherwise keep showing the old value. */}
-                <ApiKeyPanel settings={data ?? draft} onChanged={() => mutate()} />
+                {CLOUD_MODE ? (
+                  <div className="max-w-2xl">
+                    <ApiKeyCard />
+                  </div>
+                ) : (
+                  /* Read from the SWR copy, not the local draft: the key state
+                     is server-owned and `draft` is seeded once, so a saved or
+                     cleared key would otherwise keep showing the old value. */
+                  <ApiKeyPanel settings={data ?? draft} onChanged={() => mutate()} />
+                )}
               </TabsContent>
 
               <TabsContent value="models" className="max-w-2xl space-y-5">
@@ -270,7 +279,7 @@ function SettingsContent() {
               </TabsContent>
 
               <TabsContent value="system" className="space-y-5">
-                <SystemPanel dataDir={draft.dataDir} />
+                {CLOUD_MODE ? <WorkspacePanel /> : <SystemPanel dataDir={draft.dataDir} />}
               </TabsContent>
             </div>
           </Tabs>
@@ -513,6 +522,78 @@ function SystemPanel({ dataDir }: { dataDir: string }) {
           Applicants, targets, prompts, pipelines, and runs are plain JSON files on this machine. Nothing is uploaded
           anywhere except the model calls you trigger yourself.
         </p>
+      </div>
+    </div>
+  );
+}
+
+
+/**
+ * Cloud mode has no services to report on. What matters instead is where the
+ * visitor's data actually is, and how to take it with them or wipe it — the
+ * two things anyone should be able to do with data held in their own browser.
+ */
+function WorkspacePanel() {
+  const toast = useToast();
+  const [bytes, setBytes] = React.useState(0);
+
+  React.useEffect(() => setBytes(workspaceSize()), []);
+
+  const download = () => {
+    downloadFile(`flow-workspace-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(exportWorkspace(), null, 2));
+    toast.success('Workspace exported', 'Your API key is deliberately not included.');
+  };
+
+  const reset = () => {
+    clearWorkspace();
+    toast.success('Workspace cleared', 'Reload the page to start fresh.');
+    setBytes(0);
+  };
+
+  return (
+    <div className="max-w-2xl space-y-5">
+      <div className="flex items-center gap-2">
+        <Server className="size-4 text-[var(--color-text-faint)]" />
+        <h3 className="text-[0.9375rem] font-semibold text-[var(--color-text)]">Your workspace</h3>
+      </div>
+
+      <p className="text-[0.8125rem] leading-relaxed text-[var(--color-text-muted)]">
+        This deployment stores nothing. Your applicants, targets, prompts, pipelines, and runs live in this browser, on
+        this device. Nobody else can read them, including whoever deployed the app — and they will not follow you to
+        another browser.
+      </p>
+
+      <Panel className="overflow-hidden">
+        <div className="flex items-center justify-between border-b border-[var(--color-border)] px-4 py-3">
+          <div>
+            <p className="text-[0.8125rem] font-medium text-[var(--color-text)]">Stored here</p>
+            <p className="text-[0.6875rem] text-[var(--color-text-faint)]">Browser local storage</p>
+          </div>
+          <span className="numeric text-[var(--color-text)]">{(bytes / 1024).toFixed(0)} KB</span>
+        </div>
+        <div className="flex items-center justify-between px-4 py-3">
+          <div>
+            <p className="text-[0.8125rem] font-medium text-[var(--color-text)]">Model calls</p>
+            <p className="text-[0.6875rem] text-[var(--color-text-faint)]">Sent from here to OpenAI, with your key</p>
+          </div>
+          <Badge tone="positive">direct</Badge>
+        </div>
+      </Panel>
+
+      <Notice tone="warning">
+        Browser storage is finite and can be cleared by the browser itself. Export a copy of anything you would mind
+        losing. Only the most recent 40 runs are kept.
+      </Notice>
+
+      <div className="flex flex-wrap gap-2">
+        <Button variant="secondary" onClick={download}>
+          <Download />
+          Export everything
+        </Button>
+        <Button variant="dangerGhost" onClick={reset}>
+          <Trash2 />
+          Clear this workspace
+        </Button>
       </div>
     </div>
   );
