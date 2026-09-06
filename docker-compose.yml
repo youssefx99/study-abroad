@@ -14,6 +14,10 @@ x-service: &service
     NODE_ENV: production
     FLOW_DATA_DIR: /app/data
     FLOW_SERVICE_HOST: gateway
+    # Containers must bind all interfaces to be reachable on the compose
+    # network. Isolation comes from publishing only the gateway and web ports.
+    FLOW_BIND_HOST: 0.0.0.0
+    FLOW_WEB_ORIGIN: ${FLOW_WEB_ORIGIN:-http://localhost:3000}
     LOG_LEVEL: ${LOG_LEVEL:-info}
     OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     PROFILES_URL: http://profiles:4001

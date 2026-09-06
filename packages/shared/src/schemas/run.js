@@ -86,7 +86,12 @@ export const runSchema = z.object({
 export const runInputSchema = z.object({
   profileId: trimmed.min(1, 'Choose an applicant'),
   pipelineId: trimmed.min(1, 'Choose a pipeline'),
-  targetIds: z.array(trimmed.min(1)).min(1, 'Choose at least one target'),
+  // Capped so a single request cannot queue an unbounded amount of paid work.
+  // 500 is far above any real outreach list and far below anything harmful.
+  targetIds: z
+    .array(trimmed.min(1))
+    .min(1, 'Choose at least one target')
+    .max(500, 'A single run is limited to 500 targets. Split the list into smaller runs.'),
   label: trimmed.max(200).optional(),
   options: runOptionsSchema.partial().optional(),
 });

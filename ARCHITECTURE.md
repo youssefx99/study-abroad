@@ -160,7 +160,20 @@ The orchestrator is the only writer of `data/secrets.json`. The stage services *
 
 Passing the key between services in request bodies would put it in every debug log and proxy trace. Reading it locally keeps it out of the wire entirely.
 
-No endpoint ever returns the key. `/api/settings` returns only whether one exists, where it came from, and a masked hint, so a shared screen or a screenshot cannot leak it. An environment key takes priority over a stored one and is marked non-editable in the UI, so a deployment can pin a key the UI cannot overwrite.
+### Why there is no authentication
+
+Flow is a single-user tool holding its own user's data, so a login screen would add friction without adding safety. What actually enforces that assumption is the network boundary, and it has to be right:
+
+- `listen()` binds **127.0.0.1** by default. `listen(port)` with no host binds every interface, which on a shared network hands an unauthenticated stranger every applicant profile, CV, and the ability to spend the owner's model budget.
+- CORS is pinned to the web app's origin. A wildcard would let any page open in the user's browser call `localhost:4000` and read or mutate everything — no network exposure required, since the request originates inside the trusted machine.
+
+Neither of these is theoretical: both were live in the first cut of this codebase and were caught by a security review before release. The web app reaches the gateway through a Next.js rewrite, which is a server-side proxy, so restricting CORS costs nothing.
+
+Container deployments set `FLOW_BIND_HOST=0.0.0.0` because containers must bind all interfaces to be reachable on the compose network. There, isolation comes from publishing only the gateway and web ports.
+
+### The key itself
+
+No endpoint ever returns the key. `/api/settings` returns only whether one exists, where it came from, and a masked hint, so a shared screen or a screenshot cannot leak it. An environment key takes priority over a stored one and is marked non-editable in the UI, so a deployment can pin a key the UI cannot overwrite. The stored file is written with owner-only permissions, so the default umask does not leave a plaintext key readable by other local accounts.
 
 ---
 

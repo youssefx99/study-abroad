@@ -171,7 +171,12 @@ app.put(
     const { apiKey } = apiKeyInputSchema.parse(req.body ?? {});
 
     await mkdir(DATA_DIR, { recursive: true });
-    await writeFile(SECRETS_FILE, JSON.stringify({ openaiApiKey: apiKey, updatedAt: now() }, null, 2), 'utf-8');
+    // Owner-only: on a shared machine the default umask would leave a plaintext
+    // key readable by every other local account.
+    await writeFile(SECRETS_FILE, JSON.stringify({ openaiApiKey: apiKey, updatedAt: now() }, null, 2), {
+      encoding: 'utf-8',
+      mode: 0o600,
+    });
 
     logger.info('API key updated');
     res.json(ok(await describeKey()));
@@ -186,7 +191,10 @@ app.delete(
     }
 
     if (existsSync(SECRETS_FILE)) {
-      await writeFile(SECRETS_FILE, JSON.stringify({ openaiApiKey: '', updatedAt: now() }, null, 2), 'utf-8');
+      await writeFile(SECRETS_FILE, JSON.stringify({ openaiApiKey: '', updatedAt: now() }, null, 2), {
+        encoding: 'utf-8',
+        mode: 0o600,
+      });
     }
 
     logger.info('API key cleared');

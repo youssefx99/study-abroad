@@ -53,7 +53,16 @@ To run for real, add an OpenAI key under **Settings → API key**, or put it in 
 OPENAI_API_KEY=sk-...
 ```
 
-The key is written to `data/secrets.json` (gitignored), read from disk by the services that need it, and **never** returned by any endpoint or sent between services.
+The key is written to `data/secrets.json` (gitignored, owner-only permissions), read from disk by the services that need it, and **never** returned by any endpoint or sent between services.
+
+### A note on the security model
+
+There is no authentication, by design — this is a single-user tool holding your own data. What enforces that is the network binding:
+
+- Every service binds to **127.0.0.1 only**. Nothing is reachable from another machine.
+- CORS is restricted to the web app's origin, so a malicious tab in your browser cannot read your data from `localhost`.
+
+Both are configurable (`FLOW_BIND_HOST`, `FLOW_WEB_ORIGIN`) for container deployments, where isolation comes from published ports instead. **Do not set `FLOW_BIND_HOST=0.0.0.0` on a shared network** — anyone who can reach the port would have full read and write access to your profiles, CVs, and model budget.
 
 ---
 

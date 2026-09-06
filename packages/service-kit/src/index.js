@@ -19,7 +19,23 @@ export function createService({ name, version = '1.0.0', jsonLimit = '8mb' }) {
   const logger = createLogger(name);
 
   app.disable('x-powered-by');
-  app.use(cors());
+
+  /**
+   * CORS is restricted to the web app's own origin.
+   *
+   * A wildcard would mean any page open in the user's browser could call these
+   * endpoints on localhost and read every applicant profile, edit targets, or
+   * start paid runs — no network exposure required. The web app reaches the
+   * gateway through a Next.js rewrite, which is a server-side proxy, so it does
+   * not rely on CORS at all; this only affects direct browser calls.
+   */
+  app.use(
+    cors({
+      origin: process.env.FLOW_WEB_ORIGIN ?? 'http://localhost:3000',
+      credentials: false,
+    }),
+  );
+
   app.use(express.json({ limit: jsonLimit }));
 
   app.use((req, res, next) => {
@@ -88,8 +104,24 @@ export function finaliseService(app, logger) {
  * @param {ReturnType<typeof createLogger>} logger
  */
 export function listen(app, port, logger) {
-  const server = app.listen(Number(port), () => {
-    logger.info(`listening on http://localhost:${port}`);
+  /**
+   * Loopback by default.
+   *
+   * `listen(port)` with no host binds every interface, which on any shared
+   * network hands an unauthenticated stranger every applicant profile, CV, and
+   * the ability to spend the owner's model budget. There is no auth here by
+   * design, so the binding is what enforces "local-first".
+   *
+   * Container deployments set FLOW_BIND_HOST=0.0.0.0, where the isolation comes
+   * from only publishing the gateway and web ports instead.
+   */
+  const host = process.env.FLOW_BIND_HOST ?? '127.0.0.1';
+
+  const server = app.listen(Number(port), host, () => {
+    logger.info(`listening on http://${host}:${port}`);
+    if (host !== '127.0.0.1' && host !== 'localhost') {
+      logger.warn(`bound to ${host}: reachable beyond this machine, and there is no authentication`);
+    }
   });
 
   server.on('error', (error) => {
