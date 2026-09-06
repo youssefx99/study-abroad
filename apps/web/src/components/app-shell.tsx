@@ -19,6 +19,7 @@ import {
   X,
   CircleDot,
   KeyRound,
+  ArrowLeft,
 } from 'lucide-react';
 import { fetcher, CLOUD_MODE } from '@/lib/api';
 import { useApiKeyState } from '@/components/api-key-card';
@@ -76,6 +77,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setMobileOpen(false);
   }, [pathname]);
 
+  // The one-page flow is the product for almost everyone, and a sidebar of
+  // seven other places to go is the opposite of what it is for. It carries its
+  // own header and its own link to the rest.
+  if (pathname === '/') {
+    return (
+      <div className="min-h-screen">
+        <div className="flex h-14 items-center gap-2.5 px-5">
+          <FlowMark />
+          <span className="font-[family-name:var(--font-display)] text-[0.9375rem] font-semibold tracking-tight text-[var(--color-text)]">
+            Flow
+          </span>
+          <div className="flex-1" />
+          <ThemeToggle />
+        </div>
+        <main>{children}</main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen">
       {/* Mobile scrim */}
@@ -104,6 +124,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Button variant="ghost" size="iconSm" className="lg:hidden" onClick={() => setMobileOpen(false)} aria-label="Close navigation">
             <X />
           </Button>
+        </div>
+
+        <div className="px-3 pt-3">
+          <Link
+            href="/"
+            className="flex items-center gap-2 rounded-[var(--radius-control)] border border-[var(--color-border)] px-2.5 py-1.5 text-[0.8125rem] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-sunken)] hover:text-[var(--color-text)]"
+          >
+            <ArrowLeft className="size-3.5" />
+            Back to the simple flow
+          </Link>
         </div>
 
         <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">

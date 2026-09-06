@@ -10,20 +10,18 @@ It is built for applicants **anywhere, in any field**. Nothing in it assumes a c
 
 ---
 
-## What it does
+## How it works
 
-```
-Your profile  ──┐
-                ├──►  Research  ──►  Fit analysis  ──►  Draft  ──►  Review  ──►  You edit and send
-Your targets  ──┘     (web)         (honest score)     (any lang)   (verify)
-```
+One page, four steps:
 
-- **Research** every target from public sources, with a hard rule against inventing anything.
-- **Score the fit** honestly. A "weak" verdict saves you from a message that costs you a reputation.
-- **Draft** in the language and tone the target expects, using only facts the earlier steps verified.
-- **Review** the draft, strip filler and unverifiable claims, and list what you still need to check yourself.
+1. **About you** — name, what you're applying for, a paragraph about yourself
+2. **Who to email** — paste a list, one per line
+3. **Your OpenAI key** — or skip it and see sample drafts first
+4. **Write** — a draft per person, ready to copy
 
-Every message comes with the factual claims it made about the target, so you can verify before your name is attached to them.
+Behind that: each target is researched from public sources, scored honestly for fit, drafted, then edited down. Every message lists the factual claims it made, so you can check them before your name is attached.
+
+Everything else — editing the prompts, building pipelines, per-target fields, run history — is behind the **Advanced** link. It is all still there; it is just no longer in the way.
 
 ---
 
@@ -135,7 +133,8 @@ If something still does not fit your situation, the fix is an edit in the **Prom
 
 | Screen | What it is for |
 |---|---|
-| **Dashboard** | Where everything stands, and one clear next action. |
+| **The one page** | Four steps: you, who to email, your key, write. This is the product for almost everyone. |
+| **Dashboard** | Where everything stands. Behind Advanced. |
 | **Applicants** | The person applying. A weighted completeness score shows what would most improve your drafts, and a preview shows the exact text the model reads. |
 | **Targets** | A filterable ledger. Add one at a time, or paste a JSON array or spreadsheet export — the importer previews rows and reports problems per row instead of rejecting the file. |
 | **Prompts** | Read and rewrite what the system asks the model. Publish versions, roll back, and render against real records without spending a token. |
