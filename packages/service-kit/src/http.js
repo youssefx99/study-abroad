@@ -1,4 +1,4 @@
-import { UpstreamError } from '@flow/shared';
+import { UpstreamError, AppError } from '@flow/shared';
 
 /**
  * Service-to-service HTTP with retry and timeout.
@@ -60,13 +60,20 @@ export async function httpJson(url, options = {}) {
 
       const message = payload?.error ?? `responded ${response.status}`;
 
-      // 4xx other than rate limiting will not improve on retry.
+      // A 4xx is the upstream service answering, not failing: the message was
+      // written for the end user and the details carry per-field validation
+      // issues. Pass both through untouched. Wrapping them would prefix the
+      // service name onto a sentence meant for a person, and drop the field
+      // errors the forms need. Rate limiting is the exception — it is
+      // transient, so it falls through to the retry path below.
       if (response.status < 500 && response.status !== 429) {
-        throw new UpstreamError(serviceName, message, response.status);
+        throw new AppError(message, response.status, payload?.details);
       }
 
       lastError = new UpstreamError(serviceName, message, response.status);
     } catch (error) {
+      // Application errors are final; only transport failures are retried.
+      if (error instanceof AppError && !(error instanceof UpstreamError)) throw error;
       if (error instanceof UpstreamError && error.status < 500 && error.status !== 429) throw error;
 
       if (signal?.aborted) {

@@ -6,6 +6,7 @@ import {
   serviceUrl,
   SERVICE_REGISTRY,
   getErrorMessage,
+  UpstreamError,
   DEGREE_LEVELS,
   TARGET_KINDS,
   TARGET_STATUSES,
@@ -157,10 +158,12 @@ for (const { prefix, service, rewrite } of ROUTES) {
         // envelope carries the outcome, so a flat 200 keeps the client simple.
         res.status(200).json(response);
       } catch (error) {
-        const status = /** @type {{ status?: number }} */ (error)?.status ?? 502;
-
-        if (status === 502 || status === 504) {
-          logger.warn(`${service} unreachable for ${req.method} ${req.path}`);
+        // A transport failure means the service is down or unreachable, which
+        // is an operational problem the user can act on. Everything else is the
+        // service answering, and its message and details pass through verbatim
+        // so per-field validation errors reach the form that raised them.
+        if (error instanceof UpstreamError) {
+          logger.warn(`${service} unreachable for ${req.method} ${req.path}: ${error.message}`);
           res.status(503).json(
             fail(
               `The ${SERVICE_REGISTRY[service].label} service is not responding. Check that it is running, then try again.`,
@@ -170,7 +173,9 @@ for (const { prefix, service, rewrite } of ROUTES) {
           return;
         }
 
-        res.status(status).json(fail(getErrorMessage(error), { service }));
+        const status = /** @type {{ status?: number }} */ (error)?.status ?? 502;
+        const details = /** @type {{ details?: Record<string, unknown> }} */ (error)?.details;
+        res.status(status).json(fail(getErrorMessage(error), { ...details, service }));
       }
     }),
   );
