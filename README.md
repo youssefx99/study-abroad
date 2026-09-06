@@ -62,14 +62,29 @@ Both are configurable (`FLOW_BIND_HOST`, `FLOW_WEB_ORIGIN`) for container deploy
 
 ## Deploy it for other people
 
+On [vercel.com/new](https://vercel.com/new), import this repository and change **one** setting:
+
+| Setting | Value |
+|---|---|
+| **Root Directory** | **`apps/web`** ← the only thing you must change |
+| Framework Preset | Next.js *(detected)* |
+| Build / Install / Output | leave blank *(detected)* |
+| Environment Variables | **none** |
+
+Then press Deploy. That is the whole deployment: no database, no environment variables, and no key of yours.
+
+Root Directory matters because this is an npm-workspace monorepo. Pointing it at `apps/web` is what makes Vercel detect Next.js properly and turn `/api/execute` into a function; it still installs from the repo root, so the `@flow/*` packages resolve.
+
+You do not need to set `NEXT_PUBLIC_FLOW_MODE`. Vercel sets `VERCEL=1` during its build, and `next.config.mjs` switches to cloud mode on that automatically. Set `NEXT_PUBLIC_FLOW_MODE=local` only if you are also hosting the eight services somewhere and want the app to talk to them.
+
+The CLI equivalent, if you prefer it:
+
 ```bash
 npm i -g vercel
-vercel --prod
+cd apps/web && vercel --prod
 ```
 
-That is the whole deployment. No database, no environment variables, and no key of yours.
-
-`vercel.json` sets `NEXT_PUBLIC_FLOW_MODE=cloud`, which changes where things live:
+Cloud mode changes where things live:
 
 | | Self-hosted (`npm run dev`) | Hosted (Vercel) |
 |---|---|---|
