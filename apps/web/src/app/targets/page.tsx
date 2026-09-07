@@ -431,7 +431,7 @@ function TargetDialog({
         <DialogBody className="space-y-4">
           <Field label="Name" required>
             {({ id }) => (
-              <Input id={id} autoFocus value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Dr. Bonita Sharif" />
+              <Input id={id} autoFocus value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Dr. Maya Lindqvist" />
             )}
           </Field>
 
@@ -445,7 +445,7 @@ function TargetDialog({
                 id={id}
                 value={form.website}
                 onChange={(e) => set('website', e.target.value)}
-                placeholder="https://computing.unl.edu/person/bonita-sharif/"
+                placeholder="https://example.edu/people/m-lindqvist"
                 className="font-[family-name:var(--font-mono)] text-xs"
               />
             )}
@@ -470,7 +470,7 @@ function TargetDialog({
                 rows={3}
                 value={form.others}
                 onChange={(e) => set('others', e.target.value)}
-                placeholder={'https://www.shbonita.me/\nhttp://www.i-trace.org'}
+                placeholder={'https://m-lindqvist.example\nhttps://example.org/lab'}
                 className="font-[family-name:var(--font-mono)] text-xs"
               />
             )}
@@ -498,20 +498,20 @@ function TargetDialog({
 
 const JSON_EXAMPLE = `[
   {
-    "name": "Dr. Bonita Sharif",
-    "university": "UNL",
-    "website": "https://computing.unl.edu/person/bonita-sharif/",
-    "google_scholar": "https://scholar.google.com/citations?user=2WeXBokAAAAJ",
+    "name": "Dr. Maya Lindqvist",
+    "university": "Uppsala University",
+    "website": "https://example.edu/people/m-lindqvist",
+    "google_scholar": "https://scholar.google.com/citations?user=EXAMPLE123",
     "others": [
-      "https://www.shbonita.me/",
-      "http://www.i-trace.org"
+      "https://m-lindqvist.example",
+      "https://example.org/lab"
     ]
   }
 ]`;
 
 const CSV_EXAMPLE = [
   'name,university,website,google_scholar,others',
-  'Dr. Bonita Sharif,UNL,https://computing.unl.edu/person/bonita-sharif/,https://scholar.google.com/citations?user=2WeXBokAAAAJ,https://www.shbonita.me/;http://www.i-trace.org',
+  'Dr. Maya Lindqvist,Uppsala University,https://example.edu/people/m-lindqvist,https://scholar.google.com/citations?user=EXAMPLE123,https://m-lindqvist.example;https://example.org/lab',
 ].join('\n');
 
 function emptyTarget() {

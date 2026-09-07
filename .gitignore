@@ -41,3 +41,6 @@ Thumbs.db
 
 # superseded pre-microservice spec, kept locally for reference
 docs/
+
+# crash dumps
+*.stackdump
