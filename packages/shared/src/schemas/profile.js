@@ -263,9 +263,11 @@ export function scoreProfileCompleteness(profile) {
     { key: 'statement', label: 'Research statement', weight: 10, done: profile.researchStatement.trim().length > 120, hint: 'The strongest personalisation signal' },
     { key: 'experience', label: 'Experience', weight: 10, done: profile.experience.length > 0, hint: 'Roles, labs, or internships' },
     { key: 'publications', label: 'Publications', weight: 8, done: profile.publications.length > 0, hint: 'Optional, but very persuasive' },
-    { key: 'documents', label: 'CV text', weight: 7, done: profile.documents.some((d) => d.text.trim().length > 200), hint: 'Paste your CV so drafts can cite it' },
-    { key: 'links', label: 'Links', weight: 5, done: profile.links.some((l) => l.url.trim()), hint: 'Scholar, GitHub, or a portfolio' },
+    { key: 'documents', label: 'CV text', weight: 7, done: profile.documents.some((d) => d.text.trim().length > 200), hint: 'Import your CV so drafts can quote it' },
   ];
+  // Links are not scored: there is no longer a screen to add them on. They
+  // arrive from an imported CV or not at all, so counting them would mark a
+  // profile incomplete for something nobody can act on.
 
   const earned = checks.reduce((sum, c) => (c.done ? sum + c.weight : sum), 0);
   const total = checks.reduce((sum, c) => sum + c.weight, 0);
