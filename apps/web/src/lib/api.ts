@@ -37,9 +37,11 @@ const BASE = '';
  */
 export const CLOUD_MODE = process.env.NEXT_PUBLIC_FLOW_MODE === 'cloud';
 
-/** Paths the browser workspace serves itself. `/api/execute` always goes out. */
+/** Paths the browser workspace serves itself. Model calls always go out. */
+const NETWORK_PATHS = ['/api/execute', '/api/run-step'];
+
 function servedLocally(path: string): boolean {
-  return CLOUD_MODE && !path.startsWith('/api/execute');
+  return CLOUD_MODE && !NETWORK_PATHS.some((p) => path.startsWith(p));
 }
 
 function runLocally<T>(method: string, path: string, body: unknown): T {

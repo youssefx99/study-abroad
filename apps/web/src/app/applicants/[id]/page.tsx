@@ -4,7 +4,7 @@ import * as React from 'react';
 import { use } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
-import { Save, Eye, CheckCircle2, Circle, ArrowLeft } from 'lucide-react';
+import { Save, Eye, CheckCircle2, Circle, ArrowLeft, Upload } from 'lucide-react';
 import { api, fetcher, ApiError } from '@/lib/api';
 import type { Profile, Meta } from '@/lib/types';
 import { localId, cn, formatNumber } from '@/lib/utils';
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Field, Input, Textarea, Select, ComboInput } from '@/components/ui/field';
 import { Panel, PanelHeader, Tabs, TabsList, TabsTrigger, TabsContent, Progress, Badge, Notice } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
+import { CvImportDialog, CvImportPrompt } from '@/components/cv-import-dialog';
 import {
   PageBody,
   PageHeader,
@@ -45,6 +46,7 @@ export default function ApplicantEditorPage({ params }: { params: Promise<{ id: 
   const [draft, setDraft] = React.useState<Profile | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [tab, setTab] = React.useState('basics');
+  const [importing, setImporting] = React.useState(false);
 
   React.useEffect(() => {
     if (data && !draft) setDraft(data);
@@ -143,6 +145,10 @@ export default function ApplicantEditorPage({ params }: { params: Promise<{ id: 
               <ArrowLeft />
               Back
             </Button>
+            <Button variant="secondary" onClick={() => setImporting(true)}>
+              <Upload />
+              From CV
+            </Button>
             <Button variant="primary" onClick={save} loading={saving} disabled={!dirty}>
               <Save />
               {dirty ? 'Save changes' : 'Saved'}
@@ -151,7 +157,9 @@ export default function ApplicantEditorPage({ params }: { params: Promise<{ id: 
         }
       />
 
-      <PageBody>
+      <PageBody className="space-y-5">
+        {(data?.completeness?.percent ?? 0) < 40 && <CvImportPrompt onOpen={() => setImporting(true)} />}
+
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
           <Panel className="overflow-hidden">
             <Tabs value={tab} onValueChange={setTab}>
@@ -161,7 +169,6 @@ export default function ApplicantEditorPage({ params }: { params: Promise<{ id: 
                 <TabsTrigger value="tests">Tests &amp; languages</TabsTrigger>
                 <TabsTrigger value="research">Research</TabsTrigger>
                 <TabsTrigger value="experience">Experience</TabsTrigger>
-                <TabsTrigger value="links">Links &amp; documents</TabsTrigger>
                 <TabsTrigger value="preview">Preview</TabsTrigger>
               </TabsList>
 
@@ -543,75 +550,6 @@ export default function ApplicantEditorPage({ params }: { params: Promise<{ id: 
                   />
                 </TabsContent>
 
-                <TabsContent value="links" className="space-y-8">
-                  <RepeaterSection
-                    title="Links"
-                    description="Label them however you like: Scholar, ORCID, GitHub, a portfolio, a lab page."
-                    items={draft.links}
-                    onChange={(items) => update('links', items)}
-                    addLabel="Add link"
-                    emptyHint="No links yet."
-                    makeEmpty={() => ({ id: localId('lnk'), label: '', url: '' })}
-                    renderItem={(item, patch) => (
-                      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-                        <Field label="Label">
-                          {({ id: fid }) => (
-                            <Input id={fid} value={item.label} onChange={(e) => patch({ label: e.target.value })} placeholder="Google Scholar" />
-                          )}
-                        </Field>
-                        <Field label="URL">
-                          {({ id: fid }) => <Input id={fid} value={item.url} onChange={(e) => patch({ url: e.target.value })} />}
-                        </Field>
-                      </div>
-                    )}
-                  />
-
-                  <RepeaterSection
-                    title="Documents"
-                    description="Paste the text of your CV or transcript. Prompts read the text, so no upload is needed."
-                    items={draft.documents}
-                    onChange={(items) => update('documents', items)}
-                    addLabel="Add document"
-                    emptyHint="Nothing attached. Pasting your CV text is the fastest way to make drafts specific."
-                    makeEmpty={() => ({ id: localId('doc'), label: '', kind: 'cv', url: '', text: '' })}
-                    renderItem={(item, patch) => (
-                      <div className="space-y-3">
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <Field label="Label">
-                            {({ id: fid }) => (
-                              <Input id={fid} value={item.label} onChange={(e) => patch({ label: e.target.value })} placeholder="CV" />
-                            )}
-                          </Field>
-                          <Field label="Kind">
-                            {({ id: fid }) => (
-                              <Select id={fid} value={item.kind} onChange={(e) => patch({ kind: e.target.value })}>
-                                <option value="cv">CV</option>
-                                <option value="transcript">Transcript</option>
-                                <option value="sop">Statement of purpose</option>
-                                <option value="recommendation">Recommendation</option>
-                                <option value="portfolio">Portfolio</option>
-                                <option value="other">Other</option>
-                              </Select>
-                            )}
-                          </Field>
-                        </div>
-                        <Field label="Text" aside={`${formatNumber(item.text.length)} characters`}>
-                          {({ id: fid }) => (
-                            <Textarea
-                              id={fid}
-                              rows={8}
-                              value={item.text}
-                              onChange={(e) => patch({ text: e.target.value })}
-                              placeholder="Paste the plain text of the document here."
-                              className="font-[family-name:var(--font-mono)] text-xs"
-                            />
-                          )}
-                        </Field>
-                      </div>
-                    )}
-                  />
-                </TabsContent>
-
                 <TabsContent value="preview" className="space-y-4">
                   <Notice tone="accent" icon={<Eye />} title="This is exactly what the model reads">
                     Every prompt that references <code className="font-[family-name:var(--font-mono)]">applicant.block</code> receives this
@@ -682,6 +620,16 @@ export default function ApplicantEditorPage({ params }: { params: Promise<{ id: 
           </aside>
         </div>
       </PageBody>
+
+      <CvImportDialog
+        open={importing}
+        onOpenChange={setImporting}
+        profile={draft}
+        onApply={(next) => {
+          setDraft(next);
+          toast.success('Filled in from your CV', 'Check it over, then save.');
+        }}
+      />
     </>
   );
 }

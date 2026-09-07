@@ -42,6 +42,14 @@ const ROUTES = [
   { prefix: '/api/runs', service: 'orchestrator', rewrite: (p) => p.replace('/api', '') },
   { prefix: '/api/settings', service: 'orchestrator', rewrite: (p) => p.replace('/api', '') },
   { prefix: '/api/overview', service: 'orchestrator', rewrite: (p) => p.replace('/api', '') },
+  // One-off prompt execution, used by the CV import.
+  //
+  // Deliberately not `/api/execute`: that path is a Next route handler in the
+  // hosted build, and route handlers shadow rewrites, so it would never reach
+  // here. Keeping the names apart also keeps the hosted route's guarantee
+  // intact — it never reads a server-side key, whereas this one is served by a
+  // stage service that does.
+  { prefix: '/api/run-step', service: 'analysis', rewrite: () => '/execute' },
 ];
 
 /**

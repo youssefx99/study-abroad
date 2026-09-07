@@ -58,9 +58,6 @@ function SettingsContent() {
     setSaving(true);
     try {
       const saved = await api.patch<Settings>('/api/settings', {
-        researchModel: draft.researchModel,
-        analysisModel: draft.analysisModel,
-        outreachModel: draft.outreachModel,
         defaultLanguage: draft.defaultLanguage,
         defaultTone: draft.defaultTone,
         defaultWordCount: draft.defaultWordCount,
@@ -95,8 +92,6 @@ function SettingsContent() {
     );
   }
 
-  const modelOptions = [...(meta?.models ?? []).map((m) => m.value), ...draft.customModels];
-
   return (
     <>
       <PageHeader
@@ -115,7 +110,6 @@ function SettingsContent() {
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className="px-2">
               <TabsTrigger value="keys">API key</TabsTrigger>
-              <TabsTrigger value="models">Models</TabsTrigger>
               <TabsTrigger value="defaults">Run defaults</TabsTrigger>
               <TabsTrigger value="appearance">Appearance</TabsTrigger>
               <TabsTrigger value="system">System</TabsTrigger>
@@ -133,72 +127,6 @@ function SettingsContent() {
                      cleared key would otherwise keep showing the old value. */
                   <ApiKeyPanel settings={data ?? draft} onChanged={() => mutate()} />
                 )}
-              </TabsContent>
-
-              <TabsContent value="models" className="max-w-2xl space-y-5">
-                <p className="text-[0.8125rem] leading-relaxed text-[var(--color-text-muted)]">
-                  These are the defaults each stage falls back to. A prompt that names its own model overrides this, so
-                  changing a value here only affects prompts that leave the model unset.
-                </p>
-
-                <Field
-                  label="Research"
-                  hint="Runs with web search, so it is the slowest and most expensive stage. A cheaper model is usually fine here."
-                >
-                  {({ id }) => (
-                    <ComboInput
-                      id={id}
-                      listId="models-research"
-                      options={modelOptions}
-                      value={draft.researchModel}
-                      onChange={(e) => setDraft({ ...draft, researchModel: e.target.value })}
-                    />
-                  )}
-                </Field>
-
-                <Field label="Analysis" hint="Short, structured reasoning. Cheap models do this well.">
-                  {({ id }) => (
-                    <ComboInput
-                      id={id}
-                      listId="models-analysis"
-                      options={modelOptions}
-                      value={draft.analysisModel}
-                      onChange={(e) => setDraft({ ...draft, analysisModel: e.target.value })}
-                    />
-                  )}
-                </Field>
-
-                <Field
-                  label="Outreach"
-                  hint="The only stage whose output a person reads and sends. Worth the strongest model you have."
-                >
-                  {({ id }) => (
-                    <ComboInput
-                      id={id}
-                      listId="models-outreach"
-                      options={modelOptions}
-                      value={draft.outreachModel}
-                      onChange={(e) => setDraft({ ...draft, outreachModel: e.target.value })}
-                    />
-                  )}
-                </Field>
-
-                <div className="rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface-sunken)] p-4">
-                  <p className="text-[0.8125rem] font-medium text-[var(--color-text)]">Suggested models</p>
-                  <dl className="mt-2 space-y-1.5">
-                    {(meta?.models ?? []).map((model) => (
-                      <div key={model.value} className="flex gap-2 text-[0.8125rem]">
-                        <dt className="w-36 shrink-0 font-[family-name:var(--font-mono)] text-xs text-[var(--color-text)]">
-                          {model.value}
-                        </dt>
-                        <dd className="text-[var(--color-text-muted)]">{model.hint}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                  <p className="mt-3 text-xs text-[var(--color-text-faint)]">
-                    Any model your key can reach works. Type a name that is not listed and it will be used as-is.
-                  </p>
-                </div>
               </TabsContent>
 
               <TabsContent value="defaults" className="max-w-2xl space-y-5">
