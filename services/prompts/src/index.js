@@ -15,6 +15,7 @@ import {
   extractVariables,
   renderTemplate,
   validateOutputSchema,
+  resolveModelConfig,
   pipelineSchema,
   pipelineInputSchema,
   pipelinePatchSchema,
@@ -545,7 +546,7 @@ app.get(
           promptVersion: active.version,
           systemPrompt: active.systemPrompt,
           userPrompt: active.userPrompt,
-          config: active.config,
+          config: resolveModelConfig(active.config),
           outputSchema: active.outputSchema,
         };
       });

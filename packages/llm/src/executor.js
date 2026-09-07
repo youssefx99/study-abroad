@@ -1,5 +1,5 @@
 import { createService, finaliseService, listen, route } from '@flow/service-kit';
-import { ok, AppError, renderTemplate, extractVariables, modelConfigSchema } from '@flow/shared';
+import { ok, AppError, renderTemplate, extractVariables, resolveModelConfig } from '@flow/shared';
 import { runPrompt } from './index.js';
 import { resolveApiKey } from './secrets.js';
 
@@ -45,7 +45,9 @@ export function createExecutorService({ name, port, defaultModel, description })
         throw new AppError(`Step "${step.title ?? step.key}" has an empty prompt. Open it in the Prompt studio and add one.`, 422);
       }
 
-      const config = modelConfigSchema.parse({ ...(step.config ?? {}), model: step.config?.model || defaultModel });
+      // Decided from code, not from the request: a stored prompt from an older
+      // workspace must not be able to send a rejected parameter.
+      const config = resolveModelConfig(step.config);
 
       const system = renderTemplate(step.systemPrompt ?? '', context);
       const user = renderTemplate(step.userPrompt, context);

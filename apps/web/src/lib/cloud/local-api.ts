@@ -17,6 +17,7 @@ import {
   extractVariables,
   renderTemplate,
   validateOutputSchema,
+  resolveModelConfig,
   pipelineSchema,
   pipelineInputSchema,
   validatePipeline,
@@ -752,7 +753,7 @@ export function buildPlan(pipelineId: string) {
         promptVersion: active.version,
         systemPrompt: active.systemPrompt,
         userPrompt: active.userPrompt,
-        config: active.config,
+        config: resolveModelConfig(active.config),
         outputSchema: active.outputSchema,
       };
     });

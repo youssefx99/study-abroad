@@ -83,6 +83,30 @@ export const promptVersionInputSchema = z.object({
   outputSchema: z.record(z.any()).nullable().optional(),
 });
 
+/**
+ * The model settings a prompt actually runs with.
+ *
+ * Model, temperature, reasoning effort, and token cap are no longer editable,
+ * so they are decided here rather than read from a stored record. Workspaces
+ * seeded before those settings were fixed still hold the old values, and
+ * without this they would keep being sent — which is how a prompt ends up
+ * asking a model for a temperature it rejects, with no field left to clear.
+ *
+ * `webSearch` is the one setting still carried per prompt: research needs it
+ * and drafting must not have it.
+ *
+ * @param {{ webSearch?: boolean } | null | undefined} config
+ */
+export function resolveModelConfig(config) {
+  return {
+    model: DEFAULT_MODEL,
+    temperature: null,
+    reasoningEffort: null,
+    maxOutputTokens: null,
+    webSearch: Boolean(config?.webSearch),
+  };
+}
+
 const VARIABLE_PATTERN = /\{\{\s*([a-zA-Z0-9_.[\]]+)\s*\}\}/g;
 
 /**
@@ -159,10 +183,13 @@ export function renderTemplate(template, context) {
  * @returns {z.infer<typeof promptVersionSchema>}
  */
 export function getActiveVersion(prompt) {
-  return (
+  const version =
     prompt.versions.find((v) => v.version === prompt.activeVersion) ??
-    prompt.versions[prompt.versions.length - 1]
-  );
+    prompt.versions[prompt.versions.length - 1];
+
+  // Resolved on the way out, so every caller — the plan builder, the editor,
+  // the prompt list — sees the settings that will actually be used.
+  return { ...version, config: resolveModelConfig(version.config) };
 }
 
 /**

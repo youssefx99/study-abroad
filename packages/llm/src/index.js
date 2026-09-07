@@ -271,10 +271,25 @@ function translateOpenAiError(error, model) {
     return new AppError(`Model "${model}" does not exist or is not available to your account.`, 404);
   }
   if (status === 429) {
+    const code = /** @type {{ error?: { code?: string, type?: string } }} */ (error)?.error;
+    const outOfCredit =
+      code?.code === 'credit_balance_exhausted' ||
+      code?.type === 'insufficient_quota' ||
+      /quota|credit|billing/i.test(message);
+
+    if (outOfCredit) {
+      return new AppError(
+        'This OpenAI account has no credit left. Add credit at platform.openai.com/settings/organization/billing, then run again.',
+        429,
+      );
+    }
+
     return new AppError('OpenAI rate-limited this run. Lower the concurrency under run options and try again.', 429);
   }
   if (status === 400 && /temperature/i.test(message)) {
-    return new AppError(`Model "${model}" does not accept a temperature. Clear the temperature field on this prompt.`, 400);
+    // Temperature is no longer sent, so reaching this means a call bypassed
+    // resolveModelConfig rather than anything the user can fix.
+    return new AppError(`Model "${model}" rejected a parameter this app should not be sending. Please report this.`, 400);
   }
   if (status === 400 && /schema|json/i.test(message)) {
     return new AppError(`The output schema was rejected: ${message}`, 400);

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { resolveModelConfig } from '@flow/shared';
 
 /**
  * The only server-side code in the deployed app, and the only place a model is
@@ -102,13 +103,30 @@ function describeError(error: unknown, model: string): { message: string; status
   if (status === 403) return { message: `Your key cannot reach "${model}". Pick a different model under Settings.`, status: 403 };
   if (status === 404) return { message: `Model "${model}" does not exist, or your account has no access to it.`, status: 404 };
   if (status === 429) {
-    return {
-      message: 'OpenAI rate-limited or declined this request. Check your account has credit, then lower the concurrency in the run options.',
-      status: 429,
-    };
+    // Two different problems share this status. Being out of credit is by far
+    // the more common one, and "lower your concurrency" is useless advice for
+    // it, so the two are told apart.
+    const detail = (error as { error?: { code?: string; type?: string } })?.error;
+    const outOfCredit =
+      detail?.code === 'credit_balance_exhausted' ||
+      detail?.type === 'insufficient_quota' ||
+      /quota|credit|billing/i.test(message);
+
+    if (outOfCredit) {
+      return {
+        message:
+          'Your OpenAI account has no credit left. Add credit at platform.openai.com/settings/organization/billing, then run again.',
+        status: 429,
+      };
+    }
+
+    return { message: 'OpenAI rate-limited this request. Lower the concurrency in the run options and try again.', status: 429 };
   }
   if (status === 400 && /temperature/i.test(message)) {
-    return { message: `Model "${model}" does not accept a temperature. Clear that field on this prompt.`, status: 400 };
+    // Should be unreachable: temperature is no longer sent. If it happens, the
+    // request did not go through resolveModelConfig, so say that rather than
+    // pointing at a field the interface no longer has.
+    return { message: `Model "${model}" rejected a parameter this app should not be sending. Please report this.`, status: 400 };
   }
   if (typeof status === 'number' && status >= 500) {
     return { message: 'OpenAI is having trouble right now. This target can be retried in a moment.', status: 502 };
@@ -132,13 +150,10 @@ export async function POST(request: Request) {
     return fail(`Step "${step?.title ?? step?.key ?? 'unknown'}" has an empty prompt. Open it in the Prompt studio and add one.`, 422);
   }
 
-  const config = {
-    model: step.config?.model?.trim() || 'gpt-5-mini',
-    temperature: step.config?.temperature ?? null,
-    reasoningEffort: step.config?.reasoningEffort ?? null,
-    maxOutputTokens: step.config?.maxOutputTokens ?? null,
-    webSearch: Boolean(step.config?.webSearch),
-  };
+  // Decided from code, never from the request. A workspace stored before the
+  // model settings were fixed still holds the old values, and honouring them
+  // is how a run ends up sending a parameter the model rejects.
+  const config = resolveModelConfig(step.config);
 
   // Demo output is produced in the browser, so reaching here without a key
   // means the caller genuinely intended a live call and has none.
