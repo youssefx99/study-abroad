@@ -69,7 +69,7 @@ On [vercel.com/new](https://vercel.com/new), import this repository and change *
 | **Root Directory** | **`apps/web`** ← the only thing you must change |
 | Framework Preset | Next.js *(detected)* |
 | Build / Install / Output | leave blank *(detected)* |
-| Environment Variables | **none** |
+| Environment Variables | **none** *(three optional ones turn on the [admin dashboard](#admin-dashboard-optional))* |
 
 Then press Deploy. That is the whole deployment: no database, no environment variables, and no key of yours.
 
@@ -109,6 +109,22 @@ The consequence, stated plainly: **every visitor pays for their own runs, and yo
 - Only the most recent 40 runs are kept, since browser storage is finite.
 
 Any host that runs Next.js works the same way — set `NEXT_PUBLIC_FLOW_MODE=cloud` at build time.
+
+### Admin dashboard (optional)
+
+A private page at **`/admin/login`** shows how the deployment is used: users, new users, visits, active users right now / today / this week / this month, the journey from first visit to a real draft, which features people use, tokens and estimated cost by model and by pipeline step, why model calls fail, countries, devices, referring sites, the most active users, and a live activity feed. Nothing in the app links to it.
+
+It needs three environment variables in **Vercel → Settings → Environment Variables**, then a redeploy:
+
+| Variable | What it is |
+|---|---|
+| `ADMIN_USERNAME` | The admin sign-in name |
+| `ADMIN_PASSWORD` | The admin password. Use a long one; changing it signs every admin session out |
+| `DATABASE_URL` | Set automatically when you connect **Neon** under **Storage → Create database**. The tables create themselves |
+
+Without the two admin variables nobody can sign in. Without a database nothing is recorded, and the app behaves exactly as before.
+
+**What is recorded** is deliberately thin: which screen was opened, which kind of action was taken (for example "added a target"), how a run ended, and how many tokens each model call used. Never a name, a CV, a prompt, a draft, an API key, or an IP address. Visitors are identified by a random id their own browser generates, so a "user" is a browser. Token counts are measured on the server from OpenAI's usage report, so they cannot be inflated from the browser. The admin page has a switch to stop counting your own browser.
 
 ---
 

@@ -2,6 +2,7 @@ import type { ApiResponse } from './types';
 import { handleLocalRequest, LocalApiError } from './cloud/local-api';
 import { subscribeToLocalRun, isRunActive, startLocalRun, cancelLocalRun } from './cloud/run-engine';
 import { getApiKey } from './cloud/api-key';
+import { analyticsHeaders, trackAction } from './analytics/client';
 
 /**
  * The single client for the gateway.
@@ -88,7 +89,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetch(`${BASE}${path}`, {
       ...init,
-      headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) },
+      headers: {
+        'content-type': 'application/json',
+        ...(path.startsWith('/api/execute') ? analyticsHeaders() : {}),
+        ...(init?.headers ?? {}),
+      },
     });
   } catch {
     // A failed fetch is almost always the backend not running, and saying so
@@ -142,13 +147,20 @@ async function requestWithMeta<T>(path: string): Promise<{ data: T; meta: Record
   return { data: payload?.data as T, meta: payload?.meta ?? {} };
 }
 
+/** A write that succeeded is counted for the admin screen, by route, never by content. */
+async function mutate<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const data = await request<T>(path, { method, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+  trackAction(method, path);
+  return data;
+}
+
 export const api = {
   get: <T>(path: string) => request<T>(path),
   getWithMeta: requestWithMeta,
-  post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body: JSON.stringify(body ?? {}) }),
-  patch: <T>(path: string, body: unknown) => request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
-  put: <T>(path: string, body: unknown) => request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
-  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  post: <T>(path: string, body?: unknown) => mutate<T>('POST', path, body ?? {}),
+  patch: <T>(path: string, body: unknown) => mutate<T>('PATCH', path, body),
+  put: <T>(path: string, body: unknown) => mutate<T>('PUT', path, body),
+  delete: <T>(path: string) => mutate<T>('DELETE', path),
 };
 
 /**
@@ -164,7 +176,7 @@ async function testApiKey(): Promise<{ ok: boolean; message: string }> {
   try {
     const response = await fetch('/api/execute', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...analyticsHeaders() },
       body: JSON.stringify({
         apiKey,
         step: {

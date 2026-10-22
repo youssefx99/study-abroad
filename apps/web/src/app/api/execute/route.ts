@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import OpenAI from 'openai';
-import { resolveModelConfig } from '@flow/shared';
+import { resolveModelConfig, estimateCostUsd } from '@flow/shared';
+import { cleanId, recordEvent, requestContext } from '@/lib/analytics/record';
 
 /**
  * The only server-side code in the deployed app, and the only place a model is
@@ -67,6 +68,28 @@ function readText(response: unknown): string {
   return typeof legacy === 'string' ? legacy : '';
 }
 
+/** Token counts across model families, with reasoning separated out of output. */
+function readUsage(response: unknown, model: string) {
+  const usage = (response as { usage?: Record<string, number & Record<string, number>> }).usage ?? {};
+  const promptTokens = Number(usage.input_tokens ?? usage.prompt_tokens ?? 0);
+  const completionTokens = Number(usage.output_tokens ?? usage.completion_tokens ?? 0);
+  const reasoningTokens = Number(
+    (usage.output_tokens_details as unknown as { reasoning_tokens?: number })?.reasoning_tokens ??
+      (usage.completion_tokens_details as unknown as { reasoning_tokens?: number })?.reasoning_tokens ??
+      0,
+  );
+
+  return {
+    promptTokens,
+    // Reasoning tokens are reported inside output tokens; separating them
+    // is what makes an unexpectedly large bill explainable.
+    completionTokens: Math.max(0, completionTokens - reasoningTokens),
+    reasoningTokens,
+    totalTokens: Number(usage.total_tokens ?? promptTokens + completionTokens),
+    model,
+  };
+}
+
 function parseJsonOutput(text: string): unknown {
   const cleaned = String(text ?? '')
     .trim()
@@ -95,13 +118,13 @@ function parseJsonOutput(text: string): unknown {
 }
 
 /** Turns an SDK error into something the person can act on. */
-function describeError(error: unknown, model: string): { message: string; status: number } {
+function describeError(error: unknown, model: string): { message: string; status: number; code: string } {
   const status = (error as { status?: number })?.status;
   const message = error instanceof Error ? error.message : 'The model call failed.';
 
-  if (status === 401) return { message: 'OpenAI rejected that API key. Check it under Settings, or paste a new one.', status: 401 };
-  if (status === 403) return { message: `Your key cannot reach "${model}". Pick a different model under Settings.`, status: 403 };
-  if (status === 404) return { message: `Model "${model}" does not exist, or your account has no access to it.`, status: 404 };
+  if (status === 401) return { message: 'OpenAI rejected that API key. Check it under Settings, or paste a new one.', status: 401, code: 'invalid_key' };
+  if (status === 403) return { message: `Your key cannot reach "${model}". Pick a different model under Settings.`, status: 403, code: 'model_forbidden' };
+  if (status === 404) return { message: `Model "${model}" does not exist, or your account has no access to it.`, status: 404, code: 'model_missing' };
   if (status === 429) {
     // Two different problems share this status. Being out of credit is by far
     // the more common one, and "lower your concurrency" is useless advice for
@@ -117,22 +140,23 @@ function describeError(error: unknown, model: string): { message: string; status
         message:
           'Your OpenAI account has no credit left. Add credit at platform.openai.com/settings/organization/billing, then run again.',
         status: 429,
+        code: 'out_of_credit',
       };
     }
 
-    return { message: 'OpenAI rate-limited this request. Lower the concurrency in the run options and try again.', status: 429 };
+    return { message: 'OpenAI rate-limited this request. Lower the concurrency in the run options and try again.', status: 429, code: 'rate_limited' };
   }
   if (status === 400 && /temperature/i.test(message)) {
     // Should be unreachable: temperature is no longer sent. If it happens, the
     // request did not go through resolveModelConfig, so say that rather than
     // pointing at a field the interface no longer has.
-    return { message: `Model "${model}" rejected a parameter this app should not be sending. Please report this.`, status: 400 };
+    return { message: `Model "${model}" rejected a parameter this app should not be sending. Please report this.`, status: 400, code: 'other' };
   }
   if (typeof status === 'number' && status >= 500) {
-    return { message: 'OpenAI is having trouble right now. This target can be retried in a moment.', status: 502 };
+    return { message: 'OpenAI is having trouble right now. This target can be retried in a moment.', status: 502, code: 'upstream' };
   }
 
-  return { message, status: typeof status === 'number' ? status : 502 };
+  return { message, status: typeof status === 'number' ? status : 502, code: 'other' };
 }
 
 export async function POST(request: Request) {
@@ -194,19 +218,44 @@ export async function POST(request: Request) {
     };
   }
 
+  // Usage analytics: who spent how many tokens on which step. Ids and counts
+  // only — never the key, the prompt, or the output — and written after the
+  // response is sent, so it costs the caller no time.
+  const optedOut = request.headers.get('x-flow-analytics') === 'off';
+  const context = requestContext(request);
+  const measure = (ok: boolean, usage: ReturnType<typeof readUsage> | null, errorCode?: string) => {
+    if (optedOut) return;
+    after(() =>
+      recordEvent({
+        type: 'model_call',
+        visitorId: cleanId(request.headers.get('x-flow-visitor')),
+        sessionId: cleanId(request.headers.get('x-flow-session')),
+        name: String(step.key ?? 'unknown').slice(0, 60),
+        model: config.model,
+        ok,
+        errorCode: errorCode ?? null,
+        country: context.country,
+        device: context.device,
+        inputTokens: usage?.promptTokens,
+        outputTokens: usage?.completionTokens,
+        reasoningTokens: usage?.reasoningTokens,
+        totalTokens: usage?.totalTokens,
+        costUsd: usage ? estimateCostUsd(usage) : 0,
+        durationMs: Date.now() - started,
+        props: config.webSearch ? { webSearch: true } : null,
+      }),
+    );
+  };
+
+  let response: unknown = null;
+
   try {
-    const response = await client.responses.create(payload as never);
+    response = await client.responses.create(payload as never);
     const text = readText(response);
     const output = step.outputSchema ? parseJsonOutput(text) : text;
 
-    const usage = (response as { usage?: Record<string, number & Record<string, number>> }).usage ?? {};
-    const promptTokens = Number(usage.input_tokens ?? usage.prompt_tokens ?? 0);
-    const completionTokens = Number(usage.output_tokens ?? usage.completion_tokens ?? 0);
-    const reasoningTokens = Number(
-      (usage.output_tokens_details as unknown as { reasoning_tokens?: number })?.reasoning_tokens ??
-        (usage.completion_tokens_details as unknown as { reasoning_tokens?: number })?.reasoning_tokens ??
-        0,
-    );
+    const usage = readUsage(response, config.model);
+    measure(true, usage);
 
     return NextResponse.json({
       success: true,
@@ -214,20 +263,14 @@ export async function POST(request: Request) {
         stepKey: step.key,
         output,
         engine: 'live',
-        usage: {
-          promptTokens,
-          // Reasoning tokens are reported inside output tokens; separating them
-          // is what makes an unexpectedly large bill explainable.
-          completionTokens: Math.max(0, completionTokens - reasoningTokens),
-          reasoningTokens,
-          totalTokens: Number(usage.total_tokens ?? promptTokens + completionTokens),
-          model: config.model,
-        },
+        usage,
         durationMs: Date.now() - started,
       },
     });
   } catch (error) {
-    const { message, status } = describeError(error, config.model);
+    const { message, status, code } = describeError(error, config.model);
+    // A response that arrived but could not be parsed was still billed.
+    measure(false, response ? readUsage(response, config.model) : null, response ? 'bad_output' : code);
     // Nothing about the key is logged, here or anywhere else in this route.
     return fail(message, status);
   }

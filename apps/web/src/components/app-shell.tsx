@@ -76,6 +76,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setMobileOpen(false);
   }, [pathname]);
 
+  // The admin area is reached by URL only: no rail, no header, and no link to
+  // it anywhere in the product.
+  if (pathname.startsWith('/admin')) return <>{children}</>;
+
   return (
     <div className="flex min-h-screen">
       {/* Mobile scrim */}

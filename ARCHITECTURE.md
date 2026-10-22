@@ -207,7 +207,8 @@ The same UI runs against two very different backends, and the switch lives in ex
 
 - `lib/cloud/local-api.ts` serves the gateway's REST surface from browser storage, importing the same schemas and prompt library from `@flow/shared` that the services use. One definition, two consumers.
 - `lib/cloud/run-engine.ts` runs the pipeline in the tab that started it, calling `/api/execute` once per step. Progress goes to subscribers directly; there is no stream to reconnect to.
-- `app/api/execute/route.ts` is the only server code, and it is stateless.
+- `app/api/execute/route.ts` is the only server code that calls a model, and it is stateless.
+- Optional usage analytics: `app/api/track` and `/api/execute` write anonymous events (screen, action kind, run outcome, token counts) to Postgres when `DATABASE_URL` is set, and `/admin` reads them back behind `ADMIN_USERNAME` / `ADMIN_PASSWORD`. The vocabulary lives in `lib/analytics/events.ts`.
 
 Because both modes speak the identical REST contract, every screen, form, and error path is exercised by both. Neither can quietly drift.
 

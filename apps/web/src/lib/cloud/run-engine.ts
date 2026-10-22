@@ -14,6 +14,7 @@ import { generateDemoOutput } from '@flow/llm/demo';
 import { readList, writeList, read } from './store';
 import { buildPlan, LocalApiError } from './local-api';
 import { getApiKey } from './api-key';
+import { analyticsHeaders, track } from '@/lib/analytics/client';
 import type { Run, RunItem, RunStep } from '@/lib/types';
 
 /**
@@ -195,6 +196,7 @@ export function startLocalRun(input: StartRunInput): Run {
   active.set(run.id, entry);
   persist(entry.run);
 
+  track('run_started', { props: { targets: targets.length, steps: plan.steps.length, demo: options.demoMode } });
   void execute(entry, profile, targets, plan);
 
   return entry.run;
@@ -287,7 +289,7 @@ async function execute(
         } else {
           const response = await fetch('/api/execute', {
             method: 'POST',
-            headers: { 'content-type': 'application/json' },
+            headers: { 'content-type': 'application/json', ...analyticsHeaders() },
             signal: entry.controller.signal,
             body: JSON.stringify({
               apiKey,
@@ -415,6 +417,17 @@ async function execute(
         ? 'Run cancelled.'
         : `${summary.succeeded} of ${summary.targets} finished${summary.failed ? `, ${summary.failed} failed` : ''}. ${summary.totalTokens.toLocaleString('en-US')} tokens used.`,
     );
+  });
+
+  track('run_finished', {
+    props: {
+      status,
+      targets: entry.run.items.length,
+      succeeded,
+      failed,
+      demo: options.demoMode,
+      durationMs: entry.run.summary?.durationMs ?? 0,
+    },
   });
 
   // Record the run against each target that finished, matching the orchestrator.

@@ -15,6 +15,8 @@
  * The key is never written to a run record, a log, or an exported workspace.
  */
 
+import { track } from '@/lib/analytics/client';
+
 const STORAGE_KEY = 'flow:v1:openai-key';
 const REMEMBER_KEY = 'flow:v1:openai-key-remember';
 
@@ -77,6 +79,8 @@ export function setApiKey(key: string, remember: boolean): ApiKeyState {
   if (store && value) {
     store.setItem(STORAGE_KEY, value);
     if (remember) window.localStorage.setItem(REMEMBER_KEY, 'true');
+    // That a key was added, never the key.
+    track('action', { name: 'api_key.save' });
   }
 
   notify();

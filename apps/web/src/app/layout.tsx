@@ -4,6 +4,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { ToastProvider } from '@/components/ui/toast';
 import { TooltipProvider } from '@/components/ui/primitives';
 import { AppShell } from '@/components/app-shell';
+import { AnalyticsTracker } from '@/components/analytics-tracker';
 import './globals.css';
 
 /**
@@ -57,6 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ToastProvider>
             <TooltipProvider>
               <AppShell>{children}</AppShell>
+              <AnalyticsTracker />
             </TooltipProvider>
           </ToastProvider>
         </ThemeProvider>
